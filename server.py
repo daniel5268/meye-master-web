@@ -10,7 +10,7 @@ import os
 
 # Configuration
 PORT = 3500
-DIRECTORY = "."
+DIRECTORY = "./public"
 
 class MyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
