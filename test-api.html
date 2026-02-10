@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Login</title>
+    <style>
+        body {
+            font-family: monospace;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff88;
+        }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #00ff88;
+            border-radius: 8px;
+        }
+        button {
+            background: #00ff88;
+            color: #1a1a1a;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #00cc6a;
+        }
+        input {
+            background: #1a1a1a;
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            padding: 8px;
+            margin: 5px;
+            border-radius: 5px;
+            width: 200px;
+        }
+        pre {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .success { color: #00ff88; }
+        .error { color: #ff3366; }
+        .info { color: #ffaa00; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test API Login</h1>
+
+    <div class="test-section">
+        <h2>1. Configuración</h2>
+        <p>API Base URL: <input type="text" id="apiUrl" value="http://localhost:3000"></p>
+        <button onclick="testConnection()">Test Conexión</button>
+        <pre id="connectionResult"></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Test Login POST</h2>
+        <p>Username: <input type="text" id="username" value="master"></p>
+        <p>Password: <input type="password" id="password" value="HolaMundo1991*"></p>
+        <button onclick="testLogin()">Test Login</button>
+        <pre id="loginResult"></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Decodificar Token JWT</h2>
+        <p>Token: <input type="text" id="token" placeholder="Pega tu token aquí" style="width: 400px;"></p>
+        <button onclick="decodeToken()">Decodificar</button>
+        <pre id="tokenResult"></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Test GET Campaigns (con token)</h2>
+        <button onclick="testCampaigns()">Test Campaigns</button>
+        <pre id="campaignsResult"></pre>
+    </div>
+
+    <script>
+        let currentToken = null;
+
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            element.innerHTML = `<span class="${className}">[${timestamp}] ${message}</span>`;
+        }
+
+        async function testConnection() {
+            const apiUrl = document.getElementById('apiUrl').value;
+            log('connectionResult', 'Probando conexión...', 'info');
+            
+            try {
+                const response = await fetch(`${apiUrl}/api/v1/users/login`, {
+                    method: 'OPTIONS'
+                });
+                
+                log('connectionResult', `✅ Conexión exitosa\nStatus: ${response.status}\nCORS habilitado: ${response.headers.has('access-control-allow-origin')}`, 'success');
+            } catch (error) {
+                log('connectionResult', `❌ Error de conexión:\n${error.message}\n\nVerifica que:\n1. El backend esté corriendo en ${apiUrl}\n2. CORS esté habilitado`, 'error');
+            }
+        }
+
+        async function testLogin() {
+            const apiUrl = document.getElementById('apiUrl').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            log('loginResult', 'Enviando POST request...', 'info');
+            
+            try {
+                const requestBody = { username, password };
+                log('loginResult', `📤 REQUEST:\nPOST ${apiUrl}/api/v1/users/login\nBody: ${JSON.stringify(requestBody, null, 2)}\n\nEsperando respuesta...`, 'info');
+                
+                const response = await fetch(`${apiUrl}/api/v1/users/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentToken = data.token;
+                    document.getElementById('token').value = data.token;
+                    
+                    // Decodificar token
+                    const claims = parseJwt(data.token);
+                    
+                    log('loginResult', `✅ LOGIN EXITOSO!\n\n📥 RESPONSE:\nStatus: ${response.status}\n\n🎫 Token recibido:\n${data.token.substring(0, 50)}...\n\n🔓 Claims decodificados:\n${JSON.stringify(claims, null, 2)}\n\n🎭 Role: ${claims.role}\n👤 User ID: ${claims.user_id}\n📛 Username: ${claims.username}`, 'success');
+                } else {
+                    log('loginResult', `❌ LOGIN FALLIDO\n\nStatus: ${response.status}\nError: ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                log('loginResult', `❌ Error en request:\n${error.message}`, 'error');
+            }
+        }
+
+        function parseJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                return { error: 'Token inválido' };
+            }
+        }
+
+        function decodeToken() {
+            const token = document.getElementById('token').value;
+            
+            if (!token) {
+                log('tokenResult', '❌ Ingresa un token primero', 'error');
+                return;
+            }
+            
+            const claims = parseJwt(token);
+            
+            if (claims.error) {
+                log('tokenResult', `❌ ${claims.error}`, 'error');
+            } else {
+                log('tokenResult', `✅ Token decodificado:\n\n${JSON.stringify(claims, null, 2)}\n\n🎭 Role: ${claims.role}\n${claims.role === 'master' ? '✅ Es MASTER - puede acceder a dashboard' : '❌ NO es master - no puede acceder a dashboard'}`, 'success');
+            }
+        }
+
+        async function testCampaigns() {
+            const apiUrl = document.getElementById('apiUrl').value;
+            
+            if (!currentToken) {
+                log('campaignsResult', '❌ Primero debes hacer login para obtener un token', 'error');
+                return;
+            }
+            
+            log('campaignsResult', 'Obteniendo campañas...', 'info');
+            
+            try {
+                log('campaignsResult', `📤 REQUEST:\nGET ${apiUrl}/api/v1/campaigns\nAuthorization: Bearer ${currentToken.substring(0, 30)}...\n\nEsperando respuesta...`, 'info');
+                
+                const response = await fetch(`${apiUrl}/api/v1/campaigns`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log('campaignsResult', `✅ CAMPAIGNS OBTENIDAS!\n\n📥 RESPONSE:\nStatus: ${response.status}\nTotal de campañas: ${Array.isArray(data) ? data.length : 'N/A'}\n\nDatos:\n${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    log('campaignsResult', `❌ ERROR\n\nStatus: ${response.status}\n${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                log('campaignsResult', `❌ Error en request:\n${error.message}`, 'error');
+            }
+        }
+
+        // Auto test connection on load
+        window.onload = () => {
+            testConnection();
+        };
+    </script>
+</body>
+</html>

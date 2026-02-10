@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - DEBUG</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1a1a1a;
+            color: #00ff88;
+            padding: 50px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        input, button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        button {
+            background: #00ff88;
+            color: #1a1a1a;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #2a2a2a;
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 3px solid #00ff88;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin: 5px 0;
+            font-size: 12px;
+        }
+        .success { color: #00ff88; }
+        .error { color: #ff3366; }
+        .info { color: #ffaa00; }
+    </style>
+</head>
+<body>
+    <h1>🐛 Login DEBUG Mode</h1>
+    
+    <div>
+        <label>Username:</label>
+        <input type="text" id="username" value="master">
+        
+        <label>Password:</label>
+        <input type="password" id="password" value="HolaMundo1991*">
+        
+        <button id="loginBtn">Login</button>
+    </div>
+
+    <div class="log" id="logContainer">
+        <div class="log-entry info">Logs aparecerán aquí...</div>
+    </div>
+
+    <script>
+        const API_BASE_URL = window?.ENV?.API_BASE_URL || 'http://localhost:3000';
+        const logContainer = document.getElementById('logContainer');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        log('🚀 Script cargado', 'success');
+        log(`📡 API URL: ${API_BASE_URL}`, 'info');
+
+        const loginBtn = document.getElementById('loginBtn');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+
+        if (!loginBtn) {
+            log('❌ ERROR: No se encontró el botón de login', 'error');
+        } else {
+            log('✅ Botón de login encontrado', 'success');
+        }
+
+        loginBtn.addEventListener('click', async () => {
+            log('🖱️ Click en botón detectado', 'info');
+            
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+            
+            log(`📝 Username: ${username}`, 'info');
+            log(`📝 Password: ${'*'.repeat(password.length)}`, 'info');
+
+            if (!username || !password) {
+                log('❌ Username o password vacío', 'error');
+                return;
+            }
+
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Cargando...';
+            
+            log('📤 Preparando request POST...', 'info');
+            
+            const requestBody = { username, password };
+            log(`📦 Body: ${JSON.stringify(requestBody)}`, 'info');
+            
+            const url = `${API_BASE_URL}/api/v1/users/login`;
+            log(`🎯 URL: ${url}`, 'info');
+
+            try {
+                log('🌐 Enviando fetch...', 'info');
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                log(`📥 Response recibida: ${response.status}`, response.ok ? 'success' : 'error');
+                
+                const data = await response.json();
+                log(`📄 Data: ${JSON.stringify(data).substring(0, 100)}...`, 'info');
+
+                if (response.ok) {
+                    log('✅ LOGIN EXITOSO!', 'success');
+                    log(`🎫 Token recibido: ${data.token.substring(0, 30)}...`, 'success');
+                    
+                    // Parse JWT
+                    const parts = data.token.split('.');
+                    const payload = JSON.parse(atob(parts[1]));
+                    log(`🔓 Claims: ${JSON.stringify(payload, null, 2)}`, 'info');
+                    log(`🎭 Role: ${payload.role}`, 'info');
+                    
+                    // Save token
+                    localStorage.setItem('authToken', data.token);
+                    log('💾 Token guardado en localStorage', 'success');
+                    
+                    // Redirect
+                    if (payload.role === 'master') {
+                        log('🎯 Redirigiendo a dashboard...', 'success');
+                        setTimeout(() => {
+                            window.location.href = '/dashboard.html';
+                        }, 2000);
+                    } else {
+                        log(`⚠️ Role "${payload.role}" no es master`, 'error');
+                    }
+                } else {
+                    log(`❌ Login falló: ${JSON.stringify(data)}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error en request: ${error.message}`, 'error');
+                log(`📋 Stack: ${error.stack}`, 'error');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Login';
+            }
+        });
+
+        log('👂 Event listener registrado', 'success');
+        log('✅ Todo listo - haz click en Login', 'success');
+    </script>
+</body>
+</html>

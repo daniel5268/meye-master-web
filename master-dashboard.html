@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Campañas - Maestro de Juego</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0a0e27;
+            --secondary: #1a1f3a;
+            --accent: #00ff88;
+            --accent-dim: #00cc6a;
+            --text: #e8edf5;
+            --text-dim: #8b95a8;
+            --error: #ff3366;
+            --warning: #ffaa00;
+            --surface: #141829;
+            --border: rgba(0, 255, 136, 0.15);
+            --hover: rgba(0, 255, 136, 0.05);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Mono', monospace;
+            background: var(--primary);
+            color: var(--text);
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* Animated background */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(0, 255, 136, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.02) 1px, transparent 1px);
+            background-size: 80px 80px;
+            animation: gridMove 30s linear infinite;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(80px, 80px); }
+        }
+
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.2;
+            z-index: 0;
+            pointer-events: none;
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .orb-1 {
+            width: 500px;
+            height: 500px;
+            background: var(--accent);
+            top: -250px;
+            right: -150px;
+        }
+
+        .orb-2 {
+            width: 400px;
+            height: 400px;
+            background: #0066ff;
+            bottom: -200px;
+            left: -150px;
+            animation-delay: 7s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(40px, -40px) scale(1.1); }
+            66% { transform: translate(-40px, 40px) scale(0.9); }
+        }
+
+        /* Header */
+        .header {
+            position: relative;
+            z-index: 10;
+            background: rgba(20, 24, 41, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 0;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            font-family: 'Syne', sans-serif;
+            color: var(--primary);
+            box-shadow: 0 8px 24px rgba(0, 255, 136, 0.3);
+        }
+
+        .logo-text h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.5px;
+        }
+
+        .logo-text .role-badge {
+            font-size: 11px;
+            color: var(--accent);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .user-id {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        .btn-logout {
+            padding: 10px 20px;
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: 'DM Mono', monospace;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-logout:hover {
+            background: var(--error);
+            border-color: var(--error);
+            transform: translateY(-2px);
+        }
+
+        /* Main content */
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 48px 32px;
+        }
+
+        .page-header {
+            margin-bottom: 40px;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .page-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 42px;
+            font-weight: 800;
+            color: var(--text);
+            margin-bottom: 12px;
+            letter-spacing: -1px;
+            line-height: 1.2;
+        }
+
+        .page-subtitle {
+            font-size: 16px;
+            color: var(--text-dim);
+            font-weight: 300;
+        }
+
+        /* Loading state */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 80px 20px;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+
+        /* Error state */
+        .error-container {
+            background: rgba(255, 51, 102, 0.1);
+            border: 1px solid rgba(255, 51, 102, 0.3);
+            border-radius: 12px;
+            padding: 32px;
+            text-align: center;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .error-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--error);
+            margin-bottom: 8px;
+        }
+
+        .error-message {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+        }
+
+        .btn-retry {
+            padding: 12px 24px;
+            background: var(--error);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-family: 'DM Mono', monospace;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-retry:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(255, 51, 102, 0.4);
+        }
+
+        /* Empty state */
+        .empty-state {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 80px 40px;
+            text-align: center;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+            opacity: 0.5;
+        }
+
+        .empty-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 12px;
+        }
+
+        .empty-message {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 32px;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .btn-create {
+            padding: 14px 28px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+            border: none;
+            border-radius: 10px;
+            color: var(--primary);
+            font-family: 'Syne', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-create:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 255, 136, 0.4);
+        }
+
+        .btn-create:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Campaigns grid */
+        .campaigns-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            animation: fadeInUp 0.6s ease-out 0.2s both;
+        }
+
+        .campaigns-count {
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+
+        .campaigns-count strong {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .campaigns-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 24px;
+            animation: fadeIn 0.6s ease-out 0.3s both;
+        }
+
+        /* Campaign card */
+        .campaign-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .campaign-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.05) 0%, transparent 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .campaign-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent);
+            box-shadow: 
+                0 12px 32px rgba(0, 0, 0, 0.4),
+                0 0 0 1px var(--accent) inset;
+        }
+
+        .campaign-card:hover::before {
+            opacity: 1;
+        }
+
+        .campaign-header {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .campaign-icon {
+            width: 52px;
+            height: 52px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 16px rgba(0, 255, 136, 0.3);
+        }
+
+        .campaign-id {
+            font-size: 10px;
+            color: var(--text-dim);
+            font-family: 'DM Mono', monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .campaign-name {
+            position: relative;
+            z-index: 1;
+            font-family: 'Syne', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 12px;
+            line-height: 1.3;
+            word-break: break-word;
+        }
+
+        .campaign-meta {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .campaign-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .campaign-actions {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            gap: 8px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 10px;
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: 'DM Mono', monospace;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-action:hover {
+            background: var(--accent);
+            color: var(--primary);
+            border-color: var(--accent);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 14, 39, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 520px;
+            width: 100%;
+            box-shadow: 
+                0 24px 80px rgba(0, 0, 0, 0.6),
+                0 0 0 1px rgba(0, 255, 136, 0.1) inset;
+            animation: modalSlideUp 0.4s ease-out;
+            position: relative;
+        }
+
+        @keyframes modalSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 28px;
+        }
+
+        .modal-title-section {
+            flex: 1;
+        }
+
+        .modal-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 8px 24px rgba(0, 255, 136, 0.3);
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .modal-subtitle {
+            font-size: 14px;
+            color: var(--text-dim);
+            font-weight: 300;
+        }
+
+        .btn-close {
+            width: 36px;
+            height: 36px;
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .btn-close:hover {
+            background: var(--error);
+            border-color: var(--error);
+            color: white;
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            margin-bottom: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text);
+            letter-spacing: 0.3px;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: 'DM Mono', monospace;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+            background: rgba(26, 31, 58, 0.8);
+            box-shadow: 
+                0 0 0 3px rgba(0, 255, 136, 0.1),
+                0 4px 12px rgba(0, 255, 136, 0.15);
+        }
+
+        input[type="text"]::placeholder {
+            color: var(--text-dim);
+            opacity: 0.6;
+        }
+
+        .input-error {
+            border-color: var(--error) !important;
+        }
+
+        .input-error:focus {
+            border-color: var(--error) !important;
+            box-shadow: 
+                0 0 0 3px rgba(255, 51, 102, 0.1),
+                0 4px 12px rgba(255, 51, 102, 0.15) !important;
+        }
+
+        .field-error {
+            display: none;
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--error);
+            font-weight: 400;
+        }
+
+        .field-error.show {
+            display: block;
+            animation: shake 0.4s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+
+        .modal-alert {
+            padding: 14px 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            font-weight: 400;
+            display: none;
+            animation: slideDown 0.4s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-alert.show {
+            display: block;
+        }
+
+        .modal-alert.error {
+            background: rgba(255, 51, 102, 0.1);
+            border: 1px solid rgba(255, 51, 102, 0.3);
+            color: var(--error);
+        }
+
+        .modal-alert.success {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            color: var(--accent);
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .btn-secondary {
+            padding: 14px 24px;
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: 'DM Mono', monospace;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            padding: 14px 28px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+            border: none;
+            border-radius: 10px;
+            color: var(--primary);
+            font-family: 'Syne', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 8px 24px rgba(0, 255, 136, 0.4),
+                0 0 0 1px var(--accent) inset;
+        }
+
+        .btn-primary:hover::before {
+            opacity: 1;
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-primary.loading .btn-loader {
+            display: block;
+        }
+
+        .btn-primary.loading .btn-text {
+            display: none;
+        }
+
+        .btn-loader {
+            display: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--primary);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+
+            .user-section {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .user-info {
+                text-align: center;
+            }
+
+            .btn-logout {
+                width: 100%;
+            }
+
+            .container {
+                padding: 32px 20px;
+            }
+
+            .page-title {
+                font-size: 32px;
+            }
+
+            .campaigns-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .campaigns-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+
+            .modal {
+                padding: 32px 24px;
+            }
+
+            .modal-title {
+                font-size: 22px;
+            }
+
+            .modal-footer {
+                flex-direction: column-reverse;
+            }
+
+            .btn-secondary,
+            .btn-primary {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background effects -->
+    <div class="bg-grid"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-section">
+                <div class="logo-icon">🎲</div>
+                <div class="logo-text">
+                    <h1>Game Master</h1>
+                    <div class="role-badge">Master Panel</div>
+                </div>
+            </div>
+            <div class="user-section">
+                <div class="user-info">
+                    <div class="user-name" id="userName">Loading...</div>
+                    <div class="user-id" id="userId"></div>
+                </div>
+                <button class="btn-logout" id="logoutBtn">Cerrar Sesión</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main content -->
+    <main class="container">
+        <div class="page-header">
+            <h2 class="page-title">Mis Campañas</h2>
+            <p class="page-subtitle">Gestiona y organiza tus aventuras épicas</p>
+        </div>
+
+        <!-- Loading state -->
+        <div id="loadingState" class="loading-container">
+            <div class="spinner"></div>
+            <div class="loading-text">Cargando campañas...</div>
+        </div>
+
+        <!-- Error state -->
+        <div id="errorState" class="error-container" style="display: none;">
+            <div class="error-icon">⚠️</div>
+            <h3 class="error-title">Error al cargar campañas</h3>
+            <p class="error-message" id="errorMessage"></p>
+            <button class="btn-retry" onclick="loadCampaigns()">Reintentar</button>
+        </div>
+
+        <!-- Empty state -->
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <div class="empty-icon">🎭</div>
+            <h3 class="empty-title">No tienes campañas aún</h3>
+            <p class="empty-message">
+                Comienza tu aventura creando tu primera campaña y conviértete en el maestro de juego.
+            </p>
+            <button class="btn-create" onclick="openCreateModal()">
+                <span>➕</span>
+                <span>Crear Primera Campaña</span>
+            </button>
+        </div>
+
+        <!-- Campaigns list -->
+        <div id="campaignsContainer" style="display: none;">
+            <div class="campaigns-header">
+                <div class="campaigns-count">
+                    <strong id="campaignsCount">0</strong> campañas activas
+                </div>
+                <button class="btn-create" onclick="openCreateModal()">
+                    <span>➕</span>
+                    <span>Nueva Campaña</span>
+                </button>
+            </div>
+            <div class="campaigns-grid" id="campaignsGrid"></div>
+        </div>
+    </main>
+
+    <!-- Create Campaign Modal -->
+    <div class="modal-overlay" id="createModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title-section">
+                    <div class="modal-icon">🏰</div>
+                    <h3 class="modal-title">Nueva Campaña</h3>
+                    <p class="modal-subtitle">Crea una nueva aventura épica</p>
+                </div>
+                <button class="btn-close" onclick="closeCreateModal()">×</button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Alert -->
+                <div id="modalAlert" class="modal-alert"></div>
+
+                <!-- Form -->
+                <form id="createCampaignForm" onsubmit="return false;">
+                    <div class="form-group">
+                        <label for="campaignName">Nombre de la Campaña *</label>
+                        <div class="input-wrapper">
+                            <input 
+                                type="text" 
+                                id="campaignName" 
+                                name="campaignName"
+                                placeholder="Ej: La Búsqueda del Reino Perdido"
+                                minlength="1"
+                                maxlength="200"
+                                autocomplete="off"
+                            >
+                            <div class="field-error" id="campaignNameError">El nombre es requerido (mínimo 1 carácter)</div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeCreateModal()">
+                    Cancelar
+                </button>
+                <button class="btn-primary" id="btnCreateCampaign" onclick="createCampaign()">
+                    <div class="btn-loader"></div>
+                    <span class="btn-text">Crear Campaña</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = window?.ENV?.API_BASE_URL || 'http://localhost:3000';
+
+        // Decode JWT without verification (only for reading claims)
+        function parseJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                console.error('Error parsing JWT:', e);
+                return null;
+            }
+        }
+
+        // Check authentication
+        function checkAuth() {
+            const token = localStorage.getItem('authToken');
+            
+            if (!token) {
+                window.location.href = '/login.html';
+                return null;
+            }
+
+            const claims = parseJwt(token);
+            
+            if (!claims) {
+                localStorage.removeItem('authToken');
+                window.location.href = '/login.html';
+                return null;
+            }
+
+            return { token, claims };
+        }
+
+        // Update user info in header
+        function updateUserInfo(claims) {
+            const userName = document.getElementById('userName');
+            const userId = document.getElementById('userId');
+            
+            if (claims.username) {
+                userName.textContent = claims.username;
+            }
+            
+            if (claims.user_id) {
+                userId.textContent = `ID: ${claims.user_id.substring(0, 8)}...`;
+            }
+        }
+
+        // Show loading state
+        function showLoading() {
+            document.getElementById('loadingState').style.display = 'flex';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('campaignsContainer').style.display = 'none';
+        }
+
+        // Show error state
+        function showError(message) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'block';
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('campaignsContainer').style.display = 'none';
+            document.getElementById('errorMessage').textContent = message;
+        }
+
+        // Show empty state
+        function showEmpty() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'block';
+            document.getElementById('campaignsContainer').style.display = 'none';
+        }
+
+        // Show campaigns
+        function showCampaigns(campaigns) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('campaignsContainer').style.display = 'block';
+            
+            // Update count
+            document.getElementById('campaignsCount').textContent = campaigns.length;
+            
+            // Render campaigns
+            const grid = document.getElementById('campaignsGrid');
+            grid.innerHTML = campaigns.map((campaign, index) => `
+                <div class="campaign-card" onclick="viewCampaign('${campaign.id}')" style="animation-delay: ${index * 0.1}s">
+                    <div class="campaign-header">
+                        <div class="campaign-icon">🏰</div>
+                        <div class="campaign-id">#${campaign.id.substring(0, 8)}</div>
+                    </div>
+                    <h3 class="campaign-name">${escapeHtml(campaign.name)}</h3>
+                    <div class="campaign-meta">
+                        <div class="campaign-meta-item">
+                            <span>👑</span>
+                            <span>Master</span>
+                        </div>
+                        <div class="campaign-meta-item">
+                            <span>🎯</span>
+                            <span>Activa</span>
+                        </div>
+                    </div>
+                    <div class="campaign-actions">
+                        <button class="btn-action" onclick="event.stopPropagation(); viewCampaign('${campaign.id}')">
+                            Ver Detalles
+                        </button>
+                        <button class="btn-action" onclick="event.stopPropagation(); editCampaign('${campaign.id}')">
+                            Editar
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Load campaigns
+        async function loadCampaigns() {
+            showLoading();
+            
+            const auth = checkAuth();
+            if (!auth) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/campaigns`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${auth.token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.status === 401) {
+                    // Token expired or invalid
+                    localStorage.removeItem('authToken');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    throw new Error(error.error || `Error ${response.status}`);
+                }
+
+                const campaigns = await response.json();
+
+                if (!Array.isArray(campaigns)) {
+                    throw new Error('Respuesta inválida del servidor');
+                }
+
+                if (campaigns.length === 0) {
+                    showEmpty();
+                } else {
+                    showCampaigns(campaigns);
+                }
+
+            } catch (error) {
+                console.error('Error loading campaigns:', error);
+                showError(error.message || 'Error de conexión. Verifica tu conexión a internet.');
+            }
+        }
+
+        // Modal functions
+        function openCreateModal() {
+            document.getElementById('createModal').classList.add('show');
+            document.getElementById('campaignName').focus();
+            // Reset form
+            document.getElementById('createCampaignForm').reset();
+            hideModalAlert();
+            hideFieldError();
+        }
+
+        function closeCreateModal() {
+            document.getElementById('createModal').classList.remove('show');
+            document.getElementById('createCampaignForm').reset();
+            hideModalAlert();
+            hideFieldError();
+        }
+
+        // Close modal on overlay click
+        document.getElementById('createModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeCreateModal();
+            }
+        });
+
+        // Close modal on ESC key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('createModal').classList.contains('show')) {
+                closeCreateModal();
+            }
+        });
+
+        // Modal alert functions
+        function showModalAlert(message, type = 'error') {
+            const alert = document.getElementById('modalAlert');
+            alert.textContent = message;
+            alert.className = `modal-alert ${type} show`;
+        }
+
+        function hideModalAlert() {
+            const alert = document.getElementById('modalAlert');
+            alert.classList.remove('show');
+        }
+
+        // Field error functions
+        function showFieldError(message = null) {
+            const input = document.getElementById('campaignName');
+            const error = document.getElementById('campaignNameError');
+            input.classList.add('input-error');
+            error.classList.add('show');
+            if (message) {
+                error.textContent = message;
+            }
+        }
+
+        function hideFieldError() {
+            const input = document.getElementById('campaignName');
+            const error = document.getElementById('campaignNameError');
+            input.classList.remove('input-error');
+            error.classList.remove('show');
+        }
+
+        // Validate campaign name
+        function validateCampaignName() {
+            const name = document.getElementById('campaignName').value.trim();
+            
+            if (name.length < 1) {
+                showFieldError();
+                return false;
+            }
+            
+            hideFieldError();
+            return true;
+        }
+
+        // Input validation on typing
+        document.getElementById('campaignName').addEventListener('input', function() {
+            if (this.classList.contains('input-error')) {
+                validateCampaignName();
+            }
+        });
+
+        // Create campaign
+        async function createCampaign() {
+            hideModalAlert();
+            
+            // Validate
+            if (!validateCampaignName()) {
+                showModalAlert('Por favor, ingresa un nombre para la campaña', 'error');
+                return;
+            }
+
+            const auth = checkAuth();
+            if (!auth) return;
+
+            const campaignName = document.getElementById('campaignName').value.trim();
+            const btnCreate = document.getElementById('btnCreateCampaign');
+
+            // Show loading state
+            btnCreate.classList.add('loading');
+            btnCreate.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/campaigns`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${auth.token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: campaignName
+                    })
+                });
+
+                if (response.status === 401) {
+                    localStorage.removeItem('authToken');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                if (response.status === 403) {
+                    showModalAlert('No tienes permisos para crear campañas. Se requiere el rol de Master.', 'error');
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Success!
+                    showModalAlert('¡Campaña creada exitosamente!', 'success');
+                    
+                    // Close modal after short delay
+                    setTimeout(() => {
+                        closeCreateModal();
+                        // Reload campaigns list
+                        loadCampaigns();
+                    }, 1000);
+
+                } else {
+                    // Handle error
+                    let errorMessage = 'Error al crear la campaña';
+                    
+                    if (response.status === 400) {
+                        errorMessage = data.error || 'Datos inválidos';
+                    } else if (response.status >= 500) {
+                        errorMessage = 'Error del servidor. Intenta más tarde';
+                    } else if (data.error) {
+                        errorMessage = data.error;
+                    }
+                    
+                    showModalAlert(errorMessage, 'error');
+                }
+
+            } catch (error) {
+                console.error('Error creating campaign:', error);
+                showModalAlert('Error de conexión. Verifica tu conexión a internet', 'error');
+            } finally {
+                // Reset button state
+                btnCreate.classList.remove('loading');
+                btnCreate.disabled = false;
+            }
+        }
+
+        // View campaign details
+        function viewCampaign(campaignId) {
+            // Navigate to campaign detail page
+            window.location.href = `/campaign-detail.html?id=${campaignId}`;
+        }
+
+        // Edit campaign
+        function editCampaign(campaignId) {
+            // Navigate to campaign edit page
+            window.location.href = `/campaign-edit.html?id=${campaignId}`;
+        }
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('authToken');
+            window.location.href = '/login.html';
+        });
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            const auth = checkAuth();
+            if (auth) {
+                updateUserInfo(auth.claims);
+                loadCampaigns();
+            }
+        });
+    </script>
+</body>
+</html>
