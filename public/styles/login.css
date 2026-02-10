@@ -1,20 +1,16 @@
 /* Login Page Specific Styles */
 
-/* Override background grid for login page */
-body .bg-grid {
-    background-size: 60px 60px;
-    animation: gridMove 20s linear infinite;
-}
-
-@keyframes gridMove {
-    0% { transform: translate(0, 0); }
-    100% { transform: translate(60px, 60px); }
+/* Override CSS variables for login page */
+:root {
+    --grid-size: 60px;
+    --grid-duration: 20s;
+    --float-translate: 30px;
+    --float-duration: 15s;
 }
 
 body .orb {
     filter: blur(80px);
     opacity: 0.3;
-    animation: float 15s ease-in-out infinite;
 }
 
 body .orb-1 {
@@ -31,12 +27,6 @@ body .orb-2 {
     bottom: -150px;
     left: -100px;
     animation-delay: 5s;
-}
-
-@keyframes float {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33% { transform: translate(30px, -30px) scale(1.1); }
-    66% { transform: translate(-30px, 30px) scale(0.9); }
 }
 
 body {

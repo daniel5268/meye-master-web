@@ -12,6 +12,10 @@
     --surface: #141829;
     --border: rgba(0, 255, 136, 0.15);
     --hover: rgba(0, 255, 136, 0.05);
+    --grid-size: 80px;
+    --grid-duration: 30s;
+    --float-translate: 40px;
+    --float-duration: 20s;
 }
 
 /* Reset */
@@ -35,15 +39,15 @@ body {
     background-image: 
         linear-gradient(rgba(0, 255, 136, 0.02) 1px, transparent 1px),
         linear-gradient(90deg, rgba(0, 255, 136, 0.02) 1px, transparent 1px);
-    background-size: 80px 80px;
-    animation: gridMove 30s linear infinite;
+    background-size: var(--grid-size) var(--grid-size);
+    animation: gridMove var(--grid-duration) linear infinite;
     z-index: 0;
     pointer-events: none;
 }
 
 @keyframes gridMove {
     0% { transform: translate(0, 0); }
-    100% { transform: translate(80px, 80px); }
+    100% { transform: translate(var(--grid-size), var(--grid-size)); }
 }
 
 /* Glowing orbs */
@@ -54,7 +58,7 @@ body {
     opacity: 0.2;
     z-index: 0;
     pointer-events: none;
-    animation: float 20s ease-in-out infinite;
+    animation: float var(--float-duration) ease-in-out infinite;
 }
 
 .orb-1 {
@@ -76,8 +80,8 @@ body {
 
 @keyframes float {
     0%, 100% { transform: translate(0, 0) scale(1); }
-    33% { transform: translate(40px, -40px) scale(1.1); }
-    66% { transform: translate(-40px, 40px) scale(0.9); }
+    33% { transform: translate(var(--float-translate), calc(var(--float-translate) * -1)) scale(1.1); }
+    66% { transform: translate(calc(var(--float-translate) * -1), var(--float-translate)) scale(0.9); }
 }
 
 /* Animations */
