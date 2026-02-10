@@ -391,7 +391,7 @@
                             <span class="pj-type ${pj.pj_type}">${pj.pj_type === 'human' ? 'Humano' : 'Sobrenatural'}</span>
                             <span class="pj-list-stat">❤️ Vida: <strong>${pj.basic_stats.life}</strong></span>
                             <span class="pj-list-stat">⚡ Energía: <strong>${pj.special_stats.energy_tank}</strong></span>
-                            <span class="pj-list-stat">XP Total: <strong>${pj.xp.basic + pj.xp.special + pj.xp.supernatural}</strong></span>
+                            <span class="pj-list-stat">XP Total: <strong>${pj.xp.basic}/${pj.xp.special}/${pj.xp.supernatural}</strong></span>
                         </div>
                     </div>
                     <button class="btn-view-pj" onclick="event.stopPropagation(); openPjModal(${index})">
