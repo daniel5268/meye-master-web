@@ -643,13 +643,17 @@
                 const players = playersData.data || [];
                 const invitations = campaignData.invitations || [];
 
-                // Group invitations by user_id and count them
+                // Group invitations by user_id and compute pending/accepted counts
                 const invitationsByUserId = {};
                 invitations.forEach(inv => {
-                    if (!invitationsByUserId[inv.user_id]) {
-                        invitationsByUserId[inv.user_id] = 0;
+                    const uid = inv.user_id;
+                    if (!invitationsByUserId[uid]) {
+                        invitationsByUserId[uid] = { total: 0, pending: 0, accepted: 0, rejected: 0 };
                     }
-                    invitationsByUserId[inv.user_id]++;
+                    invitationsByUserId[uid].total++;
+                    if (inv.state === 'pending') invitationsByUserId[uid].pending++;
+                    else if (inv.state === 'accepted') invitationsByUserId[uid].accepted++;
+                    else if (inv.state === 'rejected') invitationsByUserId[uid].rejected++;
                 });
 
                 // Create user items for all players (with or without invitations)
@@ -661,14 +665,18 @@
 
                 invitationsEmpty.style.display = 'none';
                 invitationsList.innerHTML = players.map(user => {
-                    const invitationCount = invitationsByUserId[user.id] || 0;
+                    const stats = invitationsByUserId[user.id] || { total: 0, pending: 0, accepted: 0, rejected: 0 };
                     return `
                         <div class="user-invitation-item">
                             <div class="user-info">
                                 <div class="user-username">${escapeHtml(user.username)}</div>
-                                <div class="user-invitation-count">Invitaciones: <strong>${invitationCount}</strong></div>
+                                <div class="user-invitation-count">
+                                    Invitaciones: <strong>${stats.total}</strong>
+                                    <span style="margin-left:12px; color:var(--text-dim); font-size:13px;">Pendientes: <strong style="color:var(--accent)">${stats.pending}</strong></span>
+                                    <span style="margin-left:12px; color:var(--text-dim); font-size:13px;">Aceptadas: <strong style="color:var(--accent)">${stats.accepted}</strong></span>
+                                </div>
                             </div>
-                            <button class="btn-add-invitation" onclick="openConfirmDialog('${user.id}', '${escapeHtml(user.username)}', ${invitationCount})">
+                            <button class="btn-add-invitation" onclick="openConfirmDialog('${user.id}', '${escapeHtml(user.username)}', ${stats.total})">
                                 <span>➕</span>
                                 <span>Agregar Invitación</span>
                             </button>
