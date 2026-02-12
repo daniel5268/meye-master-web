@@ -243,19 +243,54 @@
                     // Store token in localStorage
                     localStorage.setItem('authToken', data.token);
                     
-                    // Parse JWT to get user role
-                    const claims = parseJwt(data.token);
-                    
-                    // Redirect after short delay based on role
-                    setTimeout(() => {
-                        if (claims && claims.role === 'master') {
-                            // Redirect masters to campaigns dashboard
-                            window.location.href = '/dashboard.html';
+                    // Fetch user details to determine role
+                    try {
+                        const userResponse = await fetch(`${API_BASE_URL}/api/v1/users/self`, {
+                            headers: {
+                                'Authorization': `Bearer ${data.token}`,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        
+                        if (userResponse.ok) {
+                            const userData = await userResponse.json();
+                            
+                            // Redirect after short delay based on role
+                            setTimeout(() => {
+                                if (userData.role === 'master') {
+                                    // Redirect masters to campaigns dashboard
+                                    window.location.href = '/master-dashboard.html';
+                                } else if (userData.role === 'player') {
+                                    // Redirect players to player dashboard
+                                    window.location.href = '/player-dashboard.html';
+                                } else {
+                                    // Default redirect for other roles
+                                    window.location.href = '/master-dashboard.html';
+                                }
+                            }, 1500);
                         } else {
-                            // Redirect other users to player dashboard or home
-                            window.location.href = '/master-dashboard.html';
+                            // If can't fetch user, fallback to JWT parsing
+                            const claims = parseJwt(data.token);
+                            setTimeout(() => {
+                                if (claims && claims.role === 'master') {
+                                    window.location.href = '/master-dashboard.html';
+                                } else {
+                                    window.location.href = '/player-dashboard.html';
+                                }
+                            }, 1500);
                         }
-                    }, 1500);
+                    } catch (userError) {
+                        console.error('Error fetching user details:', userError);
+                        // Fallback to JWT parsing
+                        const claims = parseJwt(data.token);
+                        setTimeout(() => {
+                            if (claims && claims.role === 'master') {
+                                window.location.href = '/master-dashboard.html';
+                            } else {
+                                window.location.href = '/player-dashboard.html';
+                            }
+                        }, 1500);
+                    }
                     
                 } else {
                     // Handle error responses
