@@ -494,6 +494,7 @@ textarea::placeholder {
     backdrop-filter: blur(8px);
     z-index: 1000;
     animation: fadeIn 0.3s ease-out;
+    pointer-events: auto;
 }
 
 .modal-overlay.show {
@@ -515,6 +516,7 @@ textarea::placeholder {
         0 0 0 1px rgba(0, 255, 136, 0.1) inset;
     animation: modalSlideUp 0.4s ease-out;
     position: relative;
+    pointer-events: auto;
 }
 
 .modal-header {

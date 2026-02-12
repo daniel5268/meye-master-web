@@ -62,10 +62,6 @@
                             <span>🎲</span>
                             <span>Crear Sesión</span>
                         </button>
-                        <button class="btn-invite" onclick="openInviteModal()">
-                            <span>✉️</span>
-                            <span>Invitar Jugador</span>
-                        </button>
                     </div>
                 </div>
             </div>
@@ -118,48 +114,31 @@
         </div>
     </div>
 
-    <!-- Invite Modal -->
-    <div class="modal-overlay" id="inviteModal">
-        <div class="modal">
+    <!-- Confirmation Dialog for Adding Invitation -->
+    <div class="modal-overlay" id="confirmInvitationDialog">
+        <div class="modal" style="max-width: 400px;">
             <div class="modal-header">
                 <div class="modal-title-section">
-                    <div class="modal-icon">✉️</div>
-                    <h3 class="modal-title">Invitar Jugador</h3>
-                    <p class="modal-subtitle">Selecciona un jugador para invitar a la campaña</p>
+                    <div class="modal-icon">❓</div>
+                    <h3 class="modal-title">Confirmar Invitación</h3>
                 </div>
-                <button class="btn-close" onclick="closeInviteModal()">×</button>
             </div>
 
             <div class="modal-body">
-                <div id="modalAlert" class="modal-alert"></div>
-
-                <!-- Players List -->
-                <div id="playersLoading" class="loading-container" style="padding: 40px 20px;">
-                    <div class="spinner"></div>
-                    <div class="loading-text">Cargando jugadores...</div>
-                </div>
-
-                <div id="playersContent" style="display: none;">
-                    <div id="playersList" class="players-list"></div>
-                    
-                    <!-- Pagination -->
-                    <div class="pagination">
-                        <button class="pagination-btn" id="btnPrevPage" onclick="loadPlayers(currentPage - 1)">
-                            Anterior
-                        </button>
-                        <span class="pagination-info" id="paginationInfo">Página 1</span>
-                        <button class="pagination-btn" id="btnNextPage" onclick="loadPlayers(currentPage + 1)">
-                            Siguiente
-                        </button>
-                    </div>
-                </div>
+                <p style="font-size: 14px; margin-bottom: 16px;">
+                    <strong id="confirmUsername">Usuario</strong> ya tiene 
+                    <strong id="confirmInvitationCount">0</strong> invitación(es).
+                </p>
+                <p style="font-size: 14px; color: var(--text-dim);">
+                    ¿Estás seguro de que quieres agregar una invitación más a este jugador?
+                </p>
             </div>
 
             <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeInviteModal()">Cancelar</button>
-                <button class="btn-primary" id="btnSendInvite" onclick="sendInvitation()" disabled>
+                <button class="btn-secondary" onclick="closeConfirmDialog()">Cancelar</button>
+                <button class="btn-primary" id="btnConfirmInvitation" onclick="confirmAddInvitation()">
                     <div class="btn-loader"></div>
-                    <span class="btn-text">Enviar Invitación</span>
+                    <span class="btn-text">Agregar Invitación</span>
                 </button>
             </div>
         </div>
@@ -363,8 +342,8 @@
             // Render PJs
             renderPJs();
 
-            // Render Invitations
-            renderInvitations();
+            // Load and render Invitations (async)
+            loadAndRenderInvitations();
 
             // Render Sessions
             renderSessions();
@@ -426,7 +405,7 @@
                         </div>
                         <div class="pj-info-item">
                             <div class="pj-info-label">Peso</div>
-                            <div class="pj-info-value">${pj.weight}</div>
+                            <div class="pj-info-value">${pj.weight}kg</div>
                         </div>
                         <div class="pj-info-item">
                             <div class="pj-info-label">Apariencia</div>
@@ -584,7 +563,7 @@
                                         <div class="pj-stat">
                                             <div class="pj-stat-label">Nivel ${transIndex + 1}</div>
                                             <div class="pj-stat-value">${power}</div>
-                                        </div>
+                        </div>
                                     `).join('')}
                                 </div>
                             </div>
@@ -629,8 +608,8 @@
         // Close modal on ESC (update existing listener)
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
-                if (document.getElementById('inviteModal').classList.contains('show')) {
-                    closeInviteModal();
+                if (document.getElementById('confirmInvitationDialog').classList.contains('show')) {
+                    closeConfirmDialog();
                 }
                 if (document.getElementById('pjModal').classList.contains('show')) {
                     closePjModal();
@@ -638,37 +617,75 @@
             }
         });
 
-        // Render Invitations
-        function renderInvitations() {
+        // Render Invitations - Show users with their invitation counts
+        // Load users and render invitations with cross-referenced data
+        async function loadAndRenderInvitations() {
             const invitationsList = document.getElementById('invitationsList');
             const invitationsEmpty = document.getElementById('invitationsEmpty');
-            const invitations = campaignData.invitations || [];
+            
+            try {
+                const token = checkAuth();
+                if (!token) return;
 
-            if (invitations.length === 0) {
+                // Load all available players
+                const response = await fetch(`${API_BASE_URL}/api/v1/users/players`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Error al cargar lista de jugadores');
+                }
+
+                const playersData = await response.json();
+                const players = playersData.data || [];
+                const invitations = campaignData.invitations || [];
+
+                // Group invitations by user_id and count them
+                const invitationsByUserId = {};
+                invitations.forEach(inv => {
+                    if (!invitationsByUserId[inv.user_id]) {
+                        invitationsByUserId[inv.user_id] = 0;
+                    }
+                    invitationsByUserId[inv.user_id]++;
+                });
+
+                // Create user items for all players (with or without invitations)
+                if (players.length === 0) {
+                    invitationsEmpty.style.display = 'block';
+                    invitationsList.innerHTML = '';
+                    return;
+                }
+
+                invitationsEmpty.style.display = 'none';
+                invitationsList.innerHTML = players.map(user => {
+                    const invitationCount = invitationsByUserId[user.id] || 0;
+                    return `
+                        <div class="user-invitation-item">
+                            <div class="user-info">
+                                <div class="user-username">${escapeHtml(user.username)}</div>
+                                <div class="user-invitation-count">Invitaciones: <strong>${invitationCount}</strong></div>
+                            </div>
+                            <button class="btn-add-invitation" onclick="openConfirmDialog('${user.id}', '${escapeHtml(user.username)}', ${invitationCount})">
+                                <span>➕</span>
+                                <span>Agregar Invitación</span>
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error loading invitations:', error);
                 invitationsEmpty.style.display = 'block';
+                invitationsEmpty.innerHTML = `
+                    <div class="empty-icon">⚠️</div>
+                    <h3 class="empty-title">Error al cargar jugadores</h3>
+                    <p class="empty-message">${error.message}</p>
+                `;
                 invitationsList.innerHTML = '';
-                return;
             }
-
-            invitationsEmpty.style.display = 'none';
-            invitationsList.innerHTML = invitations.map(invitation => `
-                <div class="invitation-item">
-                    <div class="invitation-info">
-                        <div class="invitation-user">Usuario: ${invitation.user_id.substring(0, 8)}...</div>
-                        <div class="invitation-id">ID Invitación: ${invitation.id}</div>
-                    </div>
-                    <span class="invitation-status ${invitation.state}">${getInvitationStateLabel(invitation.state)}</span>
-                </div>
-            `).join('');
-        }
-
-        function getInvitationStateLabel(state) {
-            const labels = {
-                'pending': 'Pendiente',
-                'accepted': 'Aceptada',
-                'rejected': 'Rechazada'
-            };
-            return labels[state] || state;
         }
 
         // Render Sessions
@@ -758,115 +775,40 @@
             }).join('');
         }
 
-        // Modal functions
-        function openInviteModal() {
-            document.getElementById('inviteModal').classList.add('show');
-            selectedPlayerId = null;
-            currentPage = 1;
-            updateInviteButton();
-            loadPlayers(1);
-        }
 
-        function closeInviteModal() {
-            document.getElementById('inviteModal').classList.remove('show');
-            hideModalAlert();
-        }
 
-        function showModalAlert(message, type = 'error') {
-            const alert = document.getElementById('modalAlert');
-            alert.textContent = message;
-            alert.className = `modal-alert ${type} show`;
-        }
+        // Confirmation Dialog functions
+        let pendingInvitationUserId = null;
+        let pendingInvitationUsername = null;
+        let pendingInvitationCount = 0;
 
-        function hideModalAlert() {
-            document.getElementById('modalAlert').classList.remove('show');
-        }
-
-        // Load players
-        async function loadPlayers(page = 1) {
-            const token = checkAuth();
-            if (!token) return;
-
-            document.getElementById('playersLoading').style.display = 'flex';
-            document.getElementById('playersContent').style.display = 'none';
-            hideModalAlert();
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/v1/users/players?page=${page}&size=${pageSize}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error('Error al cargar jugadores');
-                }
-
-                const data = await response.json();
-                currentPage = data.page;
-                renderPlayers(data.data || []);
-
-                // Update pagination
-                document.getElementById('paginationInfo').textContent = `Página ${data.page}`;
-                document.getElementById('btnPrevPage').disabled = data.page <= 1;
-                document.getElementById('btnNextPage').disabled = (data.data || []).length < pageSize;
-
-                document.getElementById('playersLoading').style.display = 'none';
-                document.getElementById('playersContent').style.display = 'block';
-
-            } catch (error) {
-                console.error('Error loading players:', error);
-                showModalAlert('Error al cargar la lista de jugadores', 'error');
-                document.getElementById('playersLoading').style.display = 'none';
-            }
-        }
-
-        function renderPlayers(players) {
-            const playersList = document.getElementById('playersList');
+        function openConfirmDialog(userId, username, currentCount) {
+            pendingInvitationUserId = userId;
+            pendingInvitationUsername = username;
+            pendingInvitationCount = currentCount;
             
-            if (players.length === 0) {
-                playersList.innerHTML = '<div class="empty-state"><div class="empty-message">No hay más jugadores disponibles</div></div>';
-                return;
-            }
-
-            playersList.innerHTML = players.map(player => `
-                <div class="player-item ${selectedPlayerId === player.id ? 'selected' : ''}" onclick="selectPlayer('${player.id}')">
-                    <div class="player-info">
-                        <div class="player-username">${escapeHtml(player.username)}</div>
-                        <div class="player-id">ID: ${player.id}</div>
-                    </div>
-                    <span class="player-role">${player.role}</span>
-                </div>
-            `).join('');
+            document.getElementById('confirmUsername').textContent = username;
+            document.getElementById('confirmInvitationCount').textContent = currentCount;
+            document.getElementById('confirmInvitationDialog').classList.add('show');
         }
 
-        function selectPlayer(playerId) {
-            selectedPlayerId = playerId;
-            updateInviteButton();
-            
-            // Update UI
-            document.querySelectorAll('.player-item').forEach(item => {
-                item.classList.remove('selected');
-            });
-            event.target.closest('.player-item').classList.add('selected');
+        function closeConfirmDialog() {
+            document.getElementById('confirmInvitationDialog').classList.remove('show');
+            pendingInvitationUserId = null;
+            pendingInvitationUsername = null;
+            pendingInvitationCount = 0;
         }
 
-        function updateInviteButton() {
-            document.getElementById('btnSendInvite').disabled = !selectedPlayerId;
-        }
-
-        // Send invitation
-        async function sendInvitation() {
-            if (!selectedPlayerId) return;
+        // Add Invitation (after confirmation)
+        async function confirmAddInvitation() {
+            if (!pendingInvitationUserId) return;
 
             const token = checkAuth();
             if (!token) return;
 
-            const btnSend = document.getElementById('btnSendInvite');
-            btnSend.classList.add('loading');
-            btnSend.disabled = true;
-            hideModalAlert();
+            const btnConfirm = document.getElementById('btnConfirmInvitation');
+            btnConfirm.classList.add('loading');
+            btnConfirm.disabled = true;
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/invitations`, {
@@ -876,7 +818,7 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        user_id: selectedPlayerId
+                        user_id: pendingInvitationUserId
                     })
                 });
 
@@ -887,18 +829,20 @@
                 }
 
                 if (response.status === 403) {
-                    showModalAlert('No tienes permisos para invitar jugadores', 'error');
+                    alert('No tienes permisos para invitar jugadores');
+                    closeConfirmDialog();
                     return;
                 }
 
                 if (response.status === 404) {
-                    showModalAlert('Campaña o jugador no encontrado', 'error');
+                    alert('Campaña o jugador no encontrado');
+                    closeConfirmDialog();
                     return;
                 }
 
                 if (response.status === 406) {
-                    const error = await response.json().catch(() => ({}));
-                    showModalAlert(error.error || 'El jugador ya fue invitado', 'error');
+                    alert('Este jugador ya tiene una invitación pendiente para esta campaña');
+                    closeConfirmDialog();
                     return;
                 }
 
@@ -908,29 +852,28 @@
                 }
 
                 // Success!
-                showModalAlert('¡Invitación enviada exitosamente!', 'success');
-                
-                setTimeout(() => {
-                    closeInviteModal();
-                    loadCampaign(); // Reload campaign to show new invitation
-                }, 1500);
+                alert('¡Invitación enviada exitosamente!');
+                closeConfirmDialog();
+                loadCampaign(); // Reload campaign to show new invitation
 
             } catch (error) {
                 console.error('Error sending invitation:', error);
-                showModalAlert(error.message || 'Error de conexión', 'error');
+                alert(error.message || 'Error de conexión');
             } finally {
-                btnSend.classList.remove('loading');
-                btnSend.disabled = false;
+                btnConfirm.classList.remove('loading');
+                btnConfirm.disabled = false;
             }
         }
 
-        // Close modal on overlay click
-        document.getElementById('inviteModal').addEventListener('click', function(e) {
+        // Close confirmation dialog on overlay click
+        document.getElementById('confirmInvitationDialog').addEventListener('click', function(e) {
             if (e.target === this) {
-                closeInviteModal();
+                closeConfirmDialog();
             }
         });
 
+        // Modal functions (old invite modal functions - removed)
+        
         // Session Modal functions
         function openSessionModal() {
             const pjs = campaignData.pjs || [];
@@ -1141,12 +1084,10 @@
             }
         });
 
-        // Update ESC listener to close all modals
+
+        // ESC key listener for closing modals (session modal listener below)
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
-                if (document.getElementById('inviteModal').classList.contains('show')) {
-                    closeInviteModal();
-                }
                 if (document.getElementById('pjModal').classList.contains('show')) {
                     closePjModal();
                 }

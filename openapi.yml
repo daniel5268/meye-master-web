@@ -1,0 +1,1797 @@
+openapi: 3.0.3
+info:
+  title: Meye Core API
+  description: |
+    **Meye Core API** is a comprehensive role-playing game (RPG) campaign management system built with Clean Architecture principles.
+
+    ## Key Features
+    - **User Management**: Support for multiple user roles (Admin, Master, Player)
+    - **Campaign Management**: Create and manage RPG campaigns with game masters
+    - **Player Characters (PJs)**: Comprehensive character creation and stat management
+    - **Session Tracking**: Record game sessions with XP assignments
+    - **Event-Driven**: Domain events published to RabbitMQ for async processing
+
+    ## Authentication
+    Most endpoints require JWT Bearer token authentication. Obtain a token via the `/api/v1/users/login` endpoint.
+
+    ## Authorization
+    The API implements role-based access control (RBAC):
+    - **Admin**: Can create new users
+    - **Master**: Can create campaigns, invite users, and manage sessions
+    - **Player**: Can create and manage their own player characters
+
+    ## Architecture
+    This API follows Clean Architecture patterns with:
+    - Domain-driven design (DDD)
+    - CQRS patterns for use cases
+    - Event sourcing for domain events
+    - PostgreSQL for persistence
+    - RabbitMQ for event publishing
+
+  version: 1.0.0
+  contact:
+    name: Meye Core API Support
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://api.meye.example.com
+    description: Production server
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Users
+    description: User management and authentication
+  - name: Campaigns
+    description: Campaign management operations
+  - name: Player Characters
+    description: Player character (PJ) management
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check if the API service is running and healthy
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: meye-core
+
+  /api/v1/users/login:
+    post:
+      tags:
+        - Users
+      summary: User login
+      description: |
+        Authenticate a user with username and password. Returns a JWT token that must be included
+        in the Authorization header for protected endpoints.
+
+        **Token Usage:**
+        ```
+        Authorization: Bearer <token>
+        ```
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              examples:
+                success:
+                  value:
+                    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidCredentials:
+                  value:
+                    error: Invalid username or password
+                    code: INVALID_CREDENTIALS
+
+  /api/v1/users:
+    post:
+      tags:
+        - Users
+      summary: Create new user
+      description: |
+        Create a new user in the system. Only accessible by users with the **Admin** role.
+
+        **User Roles:**
+        - `admin`: System administrator with full access
+        - `master`: Campaign master who can create and manage campaigns
+        - `player`: Regular player who can create and manage their own characters
+
+        **Password Requirements:**
+        - Minimum 8 characters
+        - Maximum 72 characters
+        - Will be hashed using bcrypt before storage
+      operationId: createUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Insufficient permissions (requires Admin role)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Username already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                conflict:
+                  value:
+                    error: Username already exists
+                    code: USERNAME_EXISTS
+
+  /api/v1/users/self:
+    get:
+      tags:
+        - Users
+      summary: Gets user details
+      description: |
+        Gets the details of the logged user.
+      operationId: getUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Details of the logged user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/users/players:
+    get:
+      tags:
+        - Users
+      summary: List all players
+      description: |
+        Retrieve a paginated list of all users with the **Player** role.
+
+        **Pagination:**
+        - Default page: 1
+        - Default size: 10
+        - Maximum size: 100
+        - Returns metadata (page, size) along with player data
+
+        **Use Cases:**
+        - Campaign masters looking for players to invite
+        - Admins managing player accounts
+        - Browsing available players in the system
+
+        **Authorization:** Requires authentication (any authenticated user can access)
+      operationId: listPlayers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+        - name: size
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+          example: 20
+      responses:
+        '200':
+          description: Players retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUsersResponse'
+              examples:
+                withPlayers:
+                  value:
+                    page: 1
+                    size: 20
+                    data:
+                      - id: "123e4567-e89b-12d3-a456-426614174000"
+                        username: "player1"
+                        role: "player"
+                      - id: "234e5678-e89b-12d3-a456-426614174001"
+                        username: "player2"
+                        role: "player"
+                      - id: "345e6789-e89b-12d3-a456-426614174002"
+                        username: "heroicwarrior"
+                        role: "player"
+                emptyPage:
+                  value:
+                    page: 5
+                    size: 20
+                    data: []
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/players:
+    get:
+      tags:
+        - Player Characters
+      summary: Get user's player characters
+      description: |
+        Retrieve all player characters (PJs) owned by the authenticated user across all campaigns.
+
+        Returns basic information about each character:
+        - Character ID
+        - Character name
+
+        **Use Cases:**
+        - Display a player's character list
+        - Character selection interface
+        - Quick overview of all owned characters
+
+        **Note:** This endpoint returns minimal character information. Use `GET /api/v1/pjs/{pjID}` 
+        to get full details about a specific character.
+
+        **Authorization:** Requires authentication (any authenticated user can access their own characters)
+      operationId: getUserPlayerCharacters
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Player characters retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PJBasicInfo'
+              examples:
+                withCharacters:
+                  value:
+                    - id: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+                      name: "Thorin Ironshield"
+                    - id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                      name: "Elara Moonwhisper"
+                    - id: "8d7e6c5b-4a3b-2c1d-0e9f-8a7b6c5d4e3f"
+                      name: "Grimlock the Bold"
+                emptyList:
+                  value: []
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/campaigns:
+    get:
+      tags:
+        - Campaigns
+      summary: List user's campaigns
+      description: |
+        Retrieve all campaigns created by the authenticated user (where they are the master).
+        Only users with the **Master** role can access this endpoint.
+
+        Returns a simple array of campaign summaries with basic information:
+        - Campaign ID
+        - Master ID (will always be the authenticated user's ID)
+        - Campaign name
+
+        **Note:** This endpoint does not return invitations or player characters.
+        Use `GET /api/v1/campaigns/{campaignID}` to get full campaign details.
+      operationId: listUserCampaigns
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CampaignID'
+      responses:
+        '200':
+          description: Campaigns retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CampaignSummary'
+              examples:
+                success:
+                  value:
+                    - id: "659a49bc-b6c1-4ab4-a763-33d382014174"
+                      master_id: "9a984b20-200d-485a-9d3d-83ab9e9e85a6"
+                      name: "exoneras fuera"
+                    - id: "750e8400-e29b-41d4-a716-446655440001"
+                      master_id: "9a984b20-200d-485a-9d3d-83ab9e9e85a6"
+                      name: "Dragon's Quest"
+                emptyList:
+                  value: []
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Insufficient permissions (requires Master role)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags:
+        - Campaigns
+      summary: Create campaign
+      description: |
+        Create a new RPG campaign. The authenticated user becomes the campaign master.
+        Only users with the **Master** role can create campaigns.
+
+        A campaign master has full control over:
+        - Inviting players to the campaign
+        - Creating game sessions
+        - Assigning XP to player characters
+      operationId: createCampaign
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCampaignRequest'
+      responses:
+        '201':
+          description: Campaign created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Insufficient permissions (requires Master role)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/campaigns/{campaignID}:
+    get:
+      tags:
+        - Campaigns
+      summary: Get campaign details
+      description: |
+        Retrieve full campaign details including all invitations and player characters.
+        Only the campaign master can access this endpoint.
+
+        **Returned Information:**
+        - Campaign metadata (ID, name, master ID)
+        - All campaign invitations with their status
+        - All player characters (PJs) in the campaign with full stats
+      operationId: getCampaign
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CampaignID'
+      responses:
+        '200':
+          description: Campaign details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignDetails'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the campaign master
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/campaigns/{campaignID}/invitations:
+    post:
+      tags:
+        - Campaigns
+      summary: Invite user to campaign
+      description: |
+        Invite a player to join the campaign. Only the campaign master can invite users.
+
+        **Invitation Flow:**
+        1. Master invites user by their user ID
+        2. Invitation is created with "pending" state
+        3. Invited player can then create a character (PJ) in the campaign
+
+        **Requirements:**
+        - Inviter must be the campaign master
+        - Invited user must exist in the system
+        - Invited user should have the "player" role
+      operationId: inviteUserToCampaign
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CampaignID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteUserRequest'
+      responses:
+        '201':
+          description: User invited successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the campaign master
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Campaign or user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '406':
+          description: Business rule violation (e.g., user already invited)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/campaigns/{campaignID}/pjs:
+    post:
+      tags:
+        - Campaigns
+        - Player Characters
+      summary: Create player character (PJ)
+      description: |
+        Create a new player character in a campaign. The authenticated user must:
+        - Have the **Player** role
+        - Be invited to the campaign
+
+        **Character Types:**
+        - `human`: Normal human character with basic and special stats
+        - `supernatural`: Supernatural character with basic, special, AND supernatural stats
+
+        **Stats System:**
+
+        **Basic Stats** (Physical/Mental/Coordination):
+        - Each category has 4 attributes and a talent flag
+        - Physical: strength, agility, speed, resistance
+        - Mental: intelligence, wisdom, concentration, will
+        - Coordination: precision, calculation, range, reflexes
+        - Life: Total hit points
+
+        **Special Stats** (Skills):
+        - Physical Skills: empowerment, vital_control
+        - Mental Skills: illusion, mental_control
+        - Energy Skills: object_handling, energy_handling
+        - Energy Tank: Total energy capacity
+        - Each category has a talent flag
+
+        **Supernatural Stats** (only for supernatural type):
+        - Skills: Array of skills with transformation levels
+
+        **Talent System:**
+        - Setting `is_*_talented` to `true` provides bonuses in that stat category
+        - Affects XP costs and stat effectiveness
+
+        **Character Attributes:**
+        - Look: Appearance rating (1-20 scale)
+        - Charisma: Social influence (-10 to +10 scale)
+        - Villainy: Evil alignment (0-10 scale)
+        - Heroism: Good alignment (0-10 scale)
+      operationId: createPlayerCharacter
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CampaignID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePJRequest'
+      responses:
+        '201':
+          description: Player character created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PJ'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: User not invited to campaign or wrong role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Campaign not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '406':
+          description: Business rule violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/campaigns/{campaignID}/sessions:
+    post:
+      tags:
+        - Campaigns
+      summary: Create game session
+      description: |
+        Record a game session for a campaign. Only the campaign master can create sessions.
+
+        **Session Recording:**
+        - Capture a summary of what happened during the session
+        - Assign experience points (XP) to player characters
+        - XP can be assigned in three categories: basic, special, and supernatural
+        - Each XP assignment can include a reason/description
+
+        **XP Types:**
+        - **Basic XP**: Used to improve basic stats (physical, mental, coordination)
+        - **Special XP**: Used to improve special skills (empowerment, illusion, energy handling, etc.)
+        - **Supernatural XP**: Used to improve supernatural abilities (only for supernatural characters)
+
+        **Use Cases:**
+        - Award XP for completing quests
+        - Recognize good roleplay
+        - Compensate for challenging encounters
+        - Balance character progression
+      operationId: createSession
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CampaignID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Session created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the campaign master
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Campaign or PJ not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/pjs/{pjID}:
+    get:
+      tags:
+        - Player Characters
+      summary: Get player character details
+      description: |
+        Retrieve full details of a player character. Only the character owner can access this endpoint.
+
+        **Returned Information:**
+        - Character metadata (ID, name, physical attributes)
+        - Complete basic stats with talent flags
+        - Complete special stats with talent flags
+        - Supernatural stats (if applicable)
+        - Current XP totals in all categories
+      operationId: getPJ
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PJID'
+      responses:
+        '200':
+          description: Player character details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PJ'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the character owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/pjs/{pjID}/stats:
+    put:
+      tags:
+        - Player Characters
+      summary: Update player character stats
+      description: |
+        Update character stats by spending accumulated XP. Only the character owner can update their stats.
+
+        **Stat Progression System:**
+        - Stats can only increase, never decrease (enforced by business logic)
+        - Each stat increase costs XP based on:
+          - Current stat value (higher stats cost more)
+          - Talent flags (talented categories cost less)
+        - XP is automatically deducted when stats are successfully updated
+
+        **Update Rules:**
+        - You must provide all basic and special stats (even if unchanged)
+        - Supernatural stats are only required for supernatural-type characters
+        - The API validates that you have sufficient XP before applying changes
+        - If any validation fails, no stats are updated (atomic operation)
+
+        **Common Errors:**
+        - `INSUFFICIENT_XP`: Not enough XP to cover the stat increases
+        - `CANNOT_REDUCE_STATS`: Attempted to decrease a stat value
+        - `SUPERNATURAL_STATS_REQUIRED`: Missing supernatural stats for supernatural character
+        - `CANNOT_UPDATE_SUPERNATURAL_STATS`: Provided supernatural stats for human character
+
+        **Best Practices:**
+        1. Retrieve current stats with GET /api/v1/pjs/{pjID}
+        2. Calculate desired stat changes
+        3. Submit full stat update with new values
+        4. Handle errors appropriately (e.g., show user which stats they can afford)
+      operationId: updatePJStats
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PJID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePJStatsRequest'
+      responses:
+        '200':
+          description: Stats updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PJ'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the character owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          description: Business rule violation (insufficient XP, cannot reduce stats, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                insufficientXP:
+                  value:
+                    error: Insufficient XP to update stats
+                    code: INSUFFICIENT_XP
+                cannotReduce:
+                  value:
+                    error: Cannot reduce stat values
+                    code: CANNOT_REDUCE_STATS
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtained from the login endpoint.
+        Include it in the Authorization header:
+        ```
+        Authorization: Bearer <your_jwt_token>
+        ```
+
+  parameters:
+    CampaignID:
+      name: campaignID
+      in: path
+      required: true
+      description: Unique identifier for the campaign
+      schema:
+        type: string
+        format: uuid
+      example: 550e8400-e29b-41d4-a716-446655440000
+
+    PJID:
+      name: pjID
+      in: path
+      required: true
+      description: Unique identifier for the player character (PJ)
+      schema:
+        type: string
+        format: uuid
+      example: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+
+  schemas:
+    # Authentication Schemas
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 100
+          pattern: '^[a-zA-Z0-9]+$'
+          description: Alphanumeric username
+          example: johndoe
+        password:
+          type: string
+          minLength: 8
+          maxLength: 72
+          format: password
+          description: User password (will be validated against bcrypt hash)
+          example: SecureP@ssw0rd
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT token for authentication
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+
+    # User Schemas
+    CreateUserRequest:
+      type: object
+      required:
+        - username
+        - password
+        - role
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 100
+          pattern: '^[a-zA-Z0-9]+$'
+          description: Alphanumeric username (no special characters)
+          example: masteruser
+        password:
+          type: string
+          minLength: 8
+          maxLength: 72
+          format: password
+          description: User password (will be hashed with bcrypt)
+          example: SecurePassword123
+        role:
+          $ref: '#/components/schemas/UserRole'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique user identifier
+          example: 123e4567-e89b-12d3-a456-426614174000
+        username:
+          type: string
+          description: Unique username
+          example: masteruser
+        role:
+          $ref: '#/components/schemas/UserRole'
+
+    UserRole:
+      type: string
+      enum:
+        - admin
+        - master
+        - player
+      description: |
+        User role defining permissions:
+        - **admin**: System administrator, can create users
+        - **master**: Campaign master, can create campaigns and sessions
+        - **player**: Regular player, can create and manage characters
+      example: master
+
+    PaginatedUsersResponse:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number (1-indexed)
+          example: 1
+        size:
+          type: integer
+          description: Number of items per page
+          example: 20
+        data:
+          type: array
+          description: Array of player users
+          items:
+            $ref: '#/components/schemas/User'
+
+    # Campaign Schemas
+    CreateCampaignRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Campaign name
+          example: The Lost Kingdom Adventure
+
+    Campaign:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique campaign identifier
+          example: 550e8400-e29b-41d4-a716-446655440000
+        name:
+          type: string
+          description: Campaign name
+          example: The Lost Kingdom Adventure
+        master_id:
+          type: string
+          format: uuid
+          description: User ID of the campaign master
+          example: 123e4567-e89b-12d3-a456-426614174000
+
+    CampaignSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique campaign identifier
+          example: 659a49bc-b6c1-4ab4-a763-33d382014174
+        master_id:
+          type: string
+          format: uuid
+          description: User ID of the campaign master
+          example: 9a984b20-200d-485a-9d3d-83ab9e9e85a6
+        name:
+          type: string
+          description: Campaign name
+          example: exoneras fuera
+
+    CampaignDetails:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique campaign identifier
+          example: 550e8400-e29b-41d4-a716-446655440000
+        name:
+          type: string
+          description: Campaign name
+          example: The Lost Kingdom Adventure
+        master_id:
+          type: string
+          format: uuid
+          description: User ID of the campaign master
+          example: 123e4567-e89b-12d3-a456-426614174000
+        invitations:
+          type: array
+          description: All campaign invitations
+          items:
+            $ref: '#/components/schemas/Invitation'
+        pjs:
+          type: array
+          description: All player characters in the campaign
+          items:
+            $ref: '#/components/schemas/PJ'
+        sessions:
+          type: array
+          description: All sessions in the campaign
+          items:
+            $ref: '#/components/schemas/Session'
+
+    InviteUserRequest:
+      type: object
+      required:
+        - user_id
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: ID of the user to invite
+          example: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+
+    Invitation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique invitation identifier
+          example: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+        campaign_id:
+          type: string
+          format: uuid
+          description: Campaign ID
+          example: 550e8400-e29b-41d4-a716-446655440000
+        user_id:
+          type: string
+          format: uuid
+          description: Invited user ID
+          example: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+        state:
+          type: string
+          description: Invitation state
+          enum:
+            - pending
+            - accepted
+            - rejected
+          example: pending
+
+    # Session Schemas
+    CreateSessionRequest:
+      type: object
+      properties:
+        summary:
+          type: string
+          description: Session summary describing what happened
+          example: The party defeated the dragon and rescued the princess. Epic battle with close calls.
+        xp_assignations:
+          type: array
+          description: XP assignments to player characters
+          items:
+            $ref: '#/components/schemas/XPAssignation'
+
+    XPAssignation:
+      type: object
+      required:
+        - pj_id
+        - amounts
+      properties:
+        pj_id:
+          type: string
+          format: uuid
+          description: Player character ID
+          example: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+        amounts:
+          $ref: '#/components/schemas/XPAmounts'
+        reason:
+          type: string
+          description: Reason for XP award
+          example: Excellent roleplay during dragon negotiation
+
+    XPAmounts:
+      type: object
+      properties:
+        basic:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Basic XP for physical, mental, and coordination stats
+          example: 100
+        special:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Special XP for skill improvements
+          example: 50
+        supernatural:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Supernatural XP for supernatural abilities
+          example: 25
+
+    Session:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique session identifier
+          example: 8d7e6c5b-4a3b-2c1d-0e9f-8a7b6c5d4e3f
+        campaign_id:
+          type: string
+          format: uuid
+          description: Campaign ID
+          example: 550e8400-e29b-41d4-a716-446655440000
+        summary:
+          type: string
+          description: Session summary
+          example: The party defeated the dragon and rescued the princess
+        created_at:
+          type: string
+          format: date-time
+          description: Session creation timestamp
+          example: 2026-02-07T14:30:00Z
+
+    # Player Character (PJ) Schemas
+    PJBasicInfo:
+      type: object
+      description: Basic player character information
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique character identifier
+          example: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+        name:
+          type: string
+          description: Character name
+          example: Thorin Ironshield
+
+    CreatePJRequest:
+      type: object
+      required:
+        - name
+        - look
+        - charisma
+        - villainy
+        - heroism
+        - type
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Character name
+          example: Thorin Ironshield
+        weight:
+          type: integer
+          format: uint
+          minimum: 1
+          description: Character weight in kg
+          example: 85
+        height:
+          type: integer
+          format: uint
+          minimum: 1
+          description: Character height in cm
+          example: 180
+        age:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Character age in years
+          example: 28
+        look:
+          type: integer
+          format: uint
+          minimum: 1
+          maximum: 20
+          description: Appearance rating (1-20, higher is more attractive)
+          example: 15
+        charisma:
+          type: integer
+          minimum: -10
+          maximum: 10
+          description: Social influence (-10 to +10, negative is intimidating, positive is charming)
+          example: 5
+        villainy:
+          type: integer
+          format: uint
+          minimum: 0
+          maximum: 10
+          description: Evil alignment (0 is neutral, 10 is pure evil)
+          example: 2
+        heroism:
+          type: integer
+          format: uint
+          minimum: 0
+          maximum: 10
+          description: Good alignment (0 is neutral, 10 is pure good)
+          example: 8
+        type:
+          $ref: '#/components/schemas/PJType'
+        is_physical_talented:
+          type: boolean
+          description: Talent in physical basic stats (provides bonuses)
+          default: false
+          example: true
+        is_mental_talented:
+          type: boolean
+          description: Talent in mental basic stats (provides bonuses)
+          default: false
+          example: false
+        is_coordination_talented:
+          type: boolean
+          description: Talent in coordination basic stats (provides bonuses)
+          default: false
+          example: false
+        is_physical_skills_talented:
+          type: boolean
+          description: Talent in physical special skills (provides bonuses)
+          default: false
+          example: false
+        is_mental_skills_talented:
+          type: boolean
+          description: Talent in mental special skills (provides bonuses)
+          default: false
+          example: false
+        is_energy_skills_talented:
+          type: boolean
+          description: Talent in energy special skills (provides bonuses)
+          default: false
+          example: false
+        is_energy_talented:
+          type: boolean
+          description: Talent in energy capacity (provides bonuses)
+          default: false
+          example: false
+
+    PJType:
+      type: string
+      enum:
+        - human
+        - supernatural
+      description: |
+        Character type:
+        - **human**: Normal human with basic and special stats only
+        - **supernatural**: Supernatural being with basic, special, AND supernatural stats
+      example: human
+
+    PJ:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique character identifier
+          example: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+        campaign_id:
+          type: string
+          format: uuid
+          description: Campaign ID this character belongs to
+          example: 550e8400-e29b-41d4-a716-446655440000
+        user_id:
+          type: string
+          format: uuid
+          description: Owner user ID
+          example: 123e4567-e89b-12d3-a456-426614174000
+        name:
+          type: string
+          description: Character name
+          example: Thorin Ironshield
+        weight:
+          type: integer
+          format: uint
+          description: Weight in kg
+          example: 85
+        height:
+          type: integer
+          format: uint
+          description: Height in cm
+          example: 180
+        age:
+          type: integer
+          format: uint
+          description: Age in years
+          example: 28
+        look:
+          type: integer
+          format: uint
+          minimum: 1
+          maximum: 20
+          description: Appearance rating
+          example: 15
+        charisma:
+          type: integer
+          minimum: -10
+          maximum: 10
+          description: Social influence
+          example: 5
+        villainy:
+          type: integer
+          format: uint
+          minimum: 0
+          maximum: 10
+          description: Evil alignment
+          example: 2
+        heroism:
+          type: integer
+          format: uint
+          minimum: 0
+          maximum: 10
+          description: Good alignment
+          example: 8
+        pj_type:
+          type: string
+          enum:
+            - human
+            - supernatural
+          description: Character type
+          example: human
+        basic_stats:
+          $ref: '#/components/schemas/BasicStats'
+        special_stats:
+          $ref: '#/components/schemas/SpecialStats'
+        supernatural_stats:
+          $ref: '#/components/schemas/SupernaturalStats'
+          nullable: true
+          description: Only present for supernatural-type characters
+        xp:
+          $ref: '#/components/schemas/XP'
+
+    # Stats Schemas
+    BasicStats:
+      type: object
+      description: Basic character statistics (physical, mental, coordination)
+      properties:
+        physical:
+          $ref: '#/components/schemas/PhysicalStats'
+        mental:
+          $ref: '#/components/schemas/MentalStats'
+        coordination:
+          $ref: '#/components/schemas/CoordinationStats'
+        life:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Hit points / health
+          example: 100
+
+    PhysicalStats:
+      type: object
+      description: Physical attributes and talent flag
+      properties:
+        strength:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Physical power and melee damage
+          example: 15
+        agility:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Flexibility and acrobatic ability
+          example: 12
+        speed:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Movement speed and initiative
+          example: 14
+        resistance:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Damage reduction and stamina
+          example: 18
+        is_talented:
+          type: boolean
+          description: Whether character has physical talent bonus
+          example: true
+
+    MentalStats:
+      type: object
+      description: Mental attributes and talent flag
+      properties:
+        intelligence:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Reasoning and learning ability
+          example: 16
+        wisdom:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Intuition and insight
+          example: 14
+        concentration:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Focus and mental endurance
+          example: 13
+        will:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Willpower and mental resistance
+          example: 15
+        is_talented:
+          type: boolean
+          description: Whether character has mental talent bonus
+          example: false
+
+    CoordinationStats:
+      type: object
+      description: Coordination attributes and talent flag
+      properties:
+        precision:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Fine motor skills and accuracy
+          example: 14
+        calculation:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Spatial reasoning and trajectory calculation
+          example: 12
+        range:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Ranged attack effectiveness
+          example: 13
+        reflexes:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Reaction time and defensive ability
+          example: 16
+        is_talented:
+          type: boolean
+          description: Whether character has coordination talent bonus
+          example: false
+
+    SpecialStats:
+      type: object
+      description: Special skills and abilities
+      properties:
+        physical:
+          $ref: '#/components/schemas/PhysicalSkills'
+        mental:
+          $ref: '#/components/schemas/MentalSkills'
+        energy:
+          $ref: '#/components/schemas/EnergySkills'
+        energy_tank:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Total energy/mana capacity
+          example: 50
+        is_energy_talented:
+          type: boolean
+          description: Whether character has energy talent bonus
+          example: false
+
+    PhysicalSkills:
+      type: object
+      description: Physical special skills
+      properties:
+        empowerment:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Physical enhancement ability
+          example: 5
+        vital_control:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Control over bodily functions and healing
+          example: 3
+        is_talented:
+          type: boolean
+          description: Whether character has physical skills talent bonus
+          example: false
+
+    MentalSkills:
+      type: object
+      description: Mental special skills
+      properties:
+        illusion:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Ability to create mental illusions
+          example: 4
+        mental_control:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Telepathy and mind control ability
+          example: 2
+        is_talented:
+          type: boolean
+          description: Whether character has mental skills talent bonus
+          example: false
+
+    EnergySkills:
+      type: object
+      description: Energy manipulation skills
+      properties:
+        object_handling:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Telekinesis and object manipulation
+          example: 6
+        energy_handling:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Raw energy projection and control
+          example: 7
+        is_talented:
+          type: boolean
+          description: Whether character has energy skills talent bonus
+          example: false
+
+    SupernaturalStats:
+      type: object
+      nullable: true
+      description: Supernatural abilities (only for supernatural-type characters)
+      properties:
+        skills:
+          type: array
+          description: Array of supernatural skills
+          items:
+            $ref: '#/components/schemas/Skill'
+
+    Skill:
+      type: object
+      description: A supernatural skill with transformation levels
+      properties:
+        transformations:
+          type: array
+          description: |
+            Array of transformation power levels.
+            Each uint represents the power level of that transformation tier.
+            Higher numbers = more powerful transformations.
+          items:
+            type: integer
+            format: uint
+            minimum: 0
+          example: [5, 10, 15]
+
+    XP:
+      type: object
+      description: Experience points available for character progression
+      properties:
+        basic:
+          type: integer
+          format: uint
+          minimum: 0
+          description: XP for basic stats (physical, mental, coordination)
+          example: 250
+        special:
+          type: integer
+          format: uint
+          minimum: 0
+          description: XP for special skills
+          example: 150
+        supernatural:
+          type: integer
+          format: uint
+          minimum: 0
+          description: XP for supernatural abilities
+          example: 75
+
+    # Update Schemas
+    UpdatePJStatsRequest:
+      type: object
+      required:
+        - basic_stats
+        - special_stats
+      properties:
+        basic_stats:
+          $ref: '#/components/schemas/BasicStatsInput'
+        special_stats:
+          $ref: '#/components/schemas/SpecialStatsInput'
+        supernatural_stats:
+          $ref: '#/components/schemas/SupernaturalStatsInput'
+          nullable: true
+          description: Required for supernatural characters, forbidden for human characters
+
+    BasicStatsInput:
+      type: object
+      required:
+        - physical
+        - mental
+        - coordination
+      properties:
+        physical:
+          $ref: '#/components/schemas/PhysicalStatsInput'
+        mental:
+          $ref: '#/components/schemas/MentalStatsInput'
+        coordination:
+          $ref: '#/components/schemas/CoordinationStatsInput'
+        life:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Hit points (can be increased)
+          example: 110
+
+    PhysicalStatsInput:
+      type: object
+      properties:
+        strength:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 16
+        agility:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 12
+        speed:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 15
+        resistance:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 19
+
+    MentalStatsInput:
+      type: object
+      properties:
+        intelligence:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 17
+        wisdom:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 14
+        concentration:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 14
+        will:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 16
+
+    CoordinationStatsInput:
+      type: object
+      properties:
+        precision:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 15
+        calculation:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 13
+        range:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 14
+        reflexes:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 17
+
+    SpecialStatsInput:
+      type: object
+      required:
+        - physical
+        - mental
+        - energy
+      properties:
+        physical:
+          $ref: '#/components/schemas/PhysicalSkillsInput'
+        mental:
+          $ref: '#/components/schemas/MentalSkillsInput'
+        energy:
+          $ref: '#/components/schemas/EnergySkillsInput'
+        energy_tank:
+          type: integer
+          format: uint
+          minimum: 0
+          description: Energy capacity (can be increased)
+          example: 60
+
+    PhysicalSkillsInput:
+      type: object
+      properties:
+        empowerment:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 6
+        vital_control:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 4
+
+    MentalSkillsInput:
+      type: object
+      properties:
+        illusion:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 5
+        mental_control:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 3
+
+    EnergySkillsInput:
+      type: object
+      properties:
+        object_handling:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 7
+        energy_handling:
+          type: integer
+          format: uint
+          minimum: 0
+          example: 8
+
+    SupernaturalStatsInput:
+      type: object
+      required:
+        - skills
+      nullable: true
+      properties:
+        skills:
+          type: array
+          description: Array of supernatural skills with updated transformation levels
+          items:
+            $ref: '#/components/schemas/SkillInput'
+
+    SkillInput:
+      type: object
+      required:
+        - transformations
+      properties:
+        transformations:
+          type: array
+          description: Array of transformation power levels (can only increase)
+          items:
+            type: integer
+            format: uint
+            minimum: 0
+          example: [5, 10, 20]
+
+    # Error Schema
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: Invalid request parameters
+        code:
+          type: string
+          description: Machine-readable error code
+          example: VALIDATION_ERROR
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters or validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            validationError:
+              value:
+                error: 'Key: ''CreateUserInputBody.Password'' Error:Field validation for ''Password'' failed on the ''min'' tag'
+                code: VALIDATION_ERROR
+
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            missingToken:
+              value:
+                error: Authentication required
+                code: UNAUTHORIZED
+            invalidToken:
+              value:
+                error: Invalid or expired token
+                code: INVALID_TOKEN
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            notFound:
+              value:
+                error: Resource not found
+                code: NOT_FOUND

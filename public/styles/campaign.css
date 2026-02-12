@@ -686,6 +686,82 @@
     color: var(--text-dim);
 }
 
+/* User Invitations */
+.invitations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.user-invitation-item {
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.user-invitation-item:hover {
+    border-color: var(--accent);
+    background: rgba(0, 255, 136, 0.05);
+    transform: translateX(4px);
+}
+
+.user-info {
+    flex: 1;
+}
+
+.user-username {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.user-invitation-count {
+    font-size: 13px;
+    color: var(--text-dim);
+}
+
+.user-invitation-count strong {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.btn-add-invitation {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+    border: none;
+    border-radius: 8px;
+    color: var(--primary);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.btn-add-invitation:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 255, 136, 0.3);
+}
+
+.btn-add-invitation:active {
+    transform: translateY(0);
+}
+
+.btn-add-invitation.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
 /* Modal specific to campaign detail */
 .modal {
     max-width: 600px;
