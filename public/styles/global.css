@@ -495,6 +495,8 @@ textarea::placeholder {
     z-index: 1000;
     animation: fadeIn 0.3s ease-out;
     pointer-events: auto;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .modal-overlay.show {
@@ -589,4 +591,31 @@ textarea::placeholder {
     display: flex;
     gap: 12px;
     justify-content: flex-end;
+}
+
+/* Stat Input Styles */
+.pj-stat-input,
+.pj-info-input {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    outline: none;
+}
+
+.pj-stat-input:focus,
+.pj-info-input:focus {
+    border-color: var(--accent);
+    background: rgba(26, 31, 58, 0.8);
+    box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.1);
+}
+
+.stat-warning {
+    cursor: help;
 }

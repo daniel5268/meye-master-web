@@ -42,6 +42,10 @@
         <div class="page-header">
             <h2 class="page-title">Mis Personajes</h2>
             <p class="page-subtitle">Gestiona tus personajes de juego</p>
+            <div class="tab-bar" style="margin-top:18px;">
+                <button class="tab-btn active" id="tabCharactersBtn" onclick="switchToCharactersTab()">Personajes</button>
+                <button class="tab-btn" id="tabInvitationsBtn" onclick="showInvitations()">Invitaciones</button>
+            </div>
         </div>
 
         <!-- Loading state -->
@@ -76,9 +80,19 @@
             </div>
             <div class="characters-grid" id="charactersGrid"></div>
         </div>
+        <!-- Invitations list (for creating PJs from invitations) -->
+        <div id="invitationsContainer" style="display: none;">
+            <div class="characters-header">
+                <div class="characters-count">
+                    <strong id="invitationsCount">0</strong> invitaciones
+                </div>
+            </div>
+            <div id="invitationsList" class="invitations-list"></div>
+        </div>
     </main>
 
     <!-- Character Details Modal -->
+    <!-- Character Details Modal (Combined view & edit) -->
     <div class="modal-overlay" id="characterModal">
         <div class="modal" style="max-width: 900px;">
             <div class="modal-header">
@@ -91,6 +105,7 @@
             </div>
 
             <div class="modal-body">
+                <div id="characterModalAlert" class="modal-alert"></div>
                 <div id="characterModalContent" class="character-modal-content">
                     <!-- Content will be dynamically loaded -->
                 </div>
@@ -98,178 +113,93 @@
 
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="closeCharacterModal()">Cerrar</button>
-                <button class="btn-primary" id="btnEditStats" onclick="openEditStatsModal()" style="display: none;">
-                    <span>✏️</span>
-                    <span>Editar Stats</span>
+                <button class="btn-primary" id="btnSavePJStats" onclick="savePJStats()" style="display: none;">
+                    <span>💾</span>
+                    <span>Guardar Cambios</span>
                 </button>
             </div>
         </div>
     </div>
 
     <!-- Edit Stats Modal -->
-    <div class="modal-overlay" id="editStatsModal">
-        <div class="modal" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;">
+
+    <!-- Create PJ Modal (from invitation) -->
+    <div class="modal-overlay" id="createPJModal">
+        <div class="modal" style="max-width:820px;">
             <div class="modal-header">
                 <div class="modal-title-section">
-                    <div class="modal-icon">⚡</div>
-                    <h3 class="modal-title">Editar Stats</h3>
-                    <p class="modal-subtitle" id="editStatsSubtitle">Mejora las estadísticas de tu personaje</p>
+                    <div class="modal-icon">🛡️</div>
+                    <h3 class="modal-title">Crear Personaje desde Invitación</h3>
+                    <p class="modal-subtitle" id="createPJCampaignName"></p>
                 </div>
-                <button class="btn-close" onclick="closeEditStatsModal()">×</button>
+                <button class="btn-close" onclick="closeCreatePJModal()">×</button>
             </div>
 
             <div class="modal-body">
-                <div id="editStatsAlert" class="modal-alert"></div>
+                <div class="form-row">
+                    <label>Nombre</label>
+                    <input type="text" id="pjNameInput" placeholder="Nombre del personaje" style="width:100%; padding:8px; margin-top:6px;">
+                </div>
 
-                <!-- XP Display -->
-                <div class="xp-display">
-                    <div class="xp-display-item">
-                        <div class="xp-display-label">XP Básico</div>
-                        <div class="xp-display-value" id="xpBasicDisplay">0</div>
+                <div class="form-row" style="margin-top:12px;">
+                    <label>Tipo</label>
+                    <select id="pjTypeInput" style="width:100%; padding:8px; margin-top:6px;">
+                        <option value="human">Humano</option>
+                        <option value="supernatural">Sobrenatural</option>
+                    </select>
+                </div>
+
+                <div class="form-row-group" style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+                    <div style="flex:1; min-width:140px;">
+                        <label>Peso (kg)</label>
+                        <input id="pjWeightInput" type="number" min="1" value="70" style="width:100%; padding:8px; margin-top:6px;">
                     </div>
-                    <div class="xp-display-item">
-                        <div class="xp-display-label">XP Especial</div>
-                        <div class="xp-display-value" id="xpSpecialDisplay">0</div>
+                    <div style="flex:1; min-width:140px;">
+                        <label>Altura (cm)</label>
+                        <input id="pjHeightInput" type="number" min="1" value="170" style="width:100%; padding:8px; margin-top:6px;">
                     </div>
-                    <div class="xp-display-item">
-                        <div class="xp-display-label">XP Sobrenatural</div>
-                        <div class="xp-display-value" id="xpSupernaturalDisplay">0</div>
+                    <div style="flex:1; min-width:140px;">
+                        <label>Edad</label>
+                        <input id="pjAgeInput" type="number" min="0" value="25" style="width:100%; padding:8px; margin-top:6px;">
+                    </div>
+                    <div style="flex:1; min-width:140px;">
+                        <label>Apariencia (1-20)</label>
+                        <input id="pjLookInput" type="number" min="1" max="20" value="10" style="width:100%; padding:8px; margin-top:6px;">
                     </div>
                 </div>
 
-                <div id="editStatsForm">
-                    <!-- Stats básicos -->
-                    <div class="edit-stats-section">
-                        <div class="edit-stats-title">💪 Stats Físicos Básicos</div>
-                        <div class="edit-stats-grid">
-                            <div class="edit-stat-item">
-                                <label>Fuerza</label>
-                                <input type="number" id="stat-strength" min="0" class="stat-input">
-                            </div>
-                            <div class="edit-stat-item">
-                                <label>Agilidad</label>
-                                <input type="number" id="stat-agility" min="0" class="stat-input">
-                            </div>
-                            <div class="edit-stat-item">
-                                <label>Velocidad</label>
-                                <input type="number" id="stat-speed" min="0" class="stat-input">
-                            </div>
-                            <div class="edit-stat-item">
-                                <label>Resistencia</label>
-                                <input type="number" id="stat-resistance" min="0" class="stat-input">
-                            </div>
-                        </div>
+                <div class="form-row-group" style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+                    <div style="flex:1; min-width:160px;">
+                        <label>Carisma (-10 a 10)</label>
+                        <input id="pjCharismaInput" type="number" min="-10" max="10" value="0" style="width:100%; padding:8px; margin-top:6px;">
                     </div>
+                    <div style="flex:1; min-width:160px;">
+                        <label>Villanía (0-10)</label>
+                        <input id="pjVillainyInput" type="number" min="0" max="10" value="0" style="width:100%; padding:8px; margin-top:6px;">
+                    </div>
+                    <div style="flex:1; min-width:160px;">
+                        <label>Heroísmo (0-10)</label>
+                        <input id="pjHeroismInput" type="number" min="0" max="10" value="5" style="width:100%; padding:8px; margin-top:6px;">
+                    </div>
+                </div>
 
-                    <div class="edit-stats-section">
-                        <div class="edit-stats-title">🧠 Stats Mentales Básicos</div>
-                        <div class="edit-stats-grid">
-                            <div class="edit-stat-item">
-                                <label>Inteligencia</label>
-                                <input type="number" id="stat-intelligence" min="0" class="stat-input">
-                            </div>
-                            <div class="edit-stat-item">
-                                <label>Sabiduría</label>
-                                <input type="number" id="stat-wisdom" min="0" class="stat-input">
-                            </div>
-                            <div class="edit-stat-item">
-                                <label>Concentración</label>
-                                <input type="number" id="stat-concentration" min="0" class="stat-input">
-                            </div>
-                            <div class="edit-stat-item">
-                                <label>Voluntad</label>
-                                <input type="number" id="stat-will" min="0" class="stat-input">
-                            </div>
-                        </div>
-                    </div>
+                <div style="margin-top:14px; display:flex; gap:12px; flex-wrap:wrap;">
+                    <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="pjIsPhysicalTalented"> Talento Físico</label>
+                    <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="pjIsMentalTalented"> Talento Mental</label>
+                    <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="pjIsCoordinationTalented"> Talento Coordinación</label>
+                    <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="pjIsEnergyTalented"> Talento Energía</label>
+                </div>
 
-                    <div class="edit-stats-section">
-                        <div class="edit-stats-title">🎯 Stats de Coordinación Básicos</div>
-                        <div class="edit-stats-grid">
-                            <div class="edit-stat-item">
-                                <label>Precisión</label>
-                                <input type="number" id="stat-precision" min="0" class="stat-input">
-                            </div>
-                            <div class="edit-stat-item">
-                                <label>Cálculo</label>
-                                <input type="number" id="stat-calculation" min="0" class="stat-input">
-                            </div>
-                            <div class="edit-stat-item">
-                                <label>Alcance</label>
-                                <input type="number" id="stat-range" min="0" class="stat-input">
-                            </div>
-                            <div class="edit-stat-item">
-                                <label>Reflejos</label>
-                                <input type="number" id="stat-reflexes" min="0" class="stat-input">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="edit-stats-section">
-                        <div class="edit-stats-title">❤️ Vida</div>
-                        <div class="edit-stats-grid" style="grid-template-columns: 1fr;">
-                            <div class="edit-stat-item">
-                                <label>Puntos de Vida</label>
-                                <input type="number" id="stat-life" min="0" class="stat-input">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Stats especiales -->
-                    <div class="edit-stats-section">
-                        <div class="edit-stats-title">💥 Habilidades Físicas Especiales</div>
-                        <div class="edit-stats-grid" style="grid-template-columns: repeat(2, 1fr);">
-                            <div class="edit-stat-item">
-                                <label>Potenciación</label>
-                                <input type="number" id="stat-empowerment" min="0" class="stat-input">
-                            </div>
-                            <div class="edit-stat-item">
-                                <label>Control Vital</label>
-                                <input type="number" id="stat-vital-control" min="0" class="stat-input">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="edit-stats-section">
-                        <div class="edit-stats-title">🔮 Habilidades Mentales Especiales</div>
-                        <div class="edit-stats-grid" style="grid-template-columns: repeat(2, 1fr);">
-                            <div class="edit-stat-item">
-                                <label>Ilusión</label>
-                                <input type="number" id="stat-illusion" min="0" class="stat-input">
-                            </div>
-                            <div class="edit-stat-item">
-                                <label>Control Mental</label>
-                                <input type="number" id="stat-mental-control" min="0" class="stat-input">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="edit-stats-section">
-                        <div class="edit-stats-title">⚡ Habilidades de Energía</div>
-                        <div class="edit-stats-grid">
-                            <div class="edit-stat-item">
-                                <label>Manejo de Objetos</label>
-                                <input type="number" id="stat-object-handling" min="0" class="stat-input">
-                            </div>
-                            <div class="edit-stat-item">
-                                <label>Manejo de Energía</label>
-                                <input type="number" id="stat-energy-handling" min="0" class="stat-input">
-                            </div>
-                            <div class="edit-stat-item">
-                                <label>Tanque de Energía</label>
-                                <input type="number" id="stat-energy-tank" min="0" class="stat-input">
-                            </div>
-                        </div>
-                    </div>
+                <div style="margin-top:8px; display:flex; gap:12px; flex-wrap:wrap;">
+                    <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="pjIsPhysicalSkillsTalented"> Habilidades Físicas Talentosas</label>
+                    <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="pjIsMentalSkillsTalented"> Habilidades Mentales Talentosas</label>
+                    <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="pjIsEnergySkillsTalented"> Habilidades de Energía Talentosas</label>
                 </div>
             </div>
 
             <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeEditStatsModal()">Cancelar</button>
-                <button class="btn-primary" id="btnSaveStats" onclick="saveStats()">
-                    <div class="btn-loader"></div>
-                    <span class="btn-text">Guardar Cambios</span>
-                </button>
+                <button class="btn-secondary" onclick="closeCreatePJModal()">Cancelar</button>
+                <button class="btn-primary" id="btnCreatePJ" onclick="createPJFromInvitation()">Crear Personaje</button>
             </div>
         </div>
     </div>
@@ -282,6 +212,7 @@
         let characters = [];
         let currentPJ = null;
         let originalStats = null;
+        let currentStats = null;
 
         // Escape HTML to prevent XSS
         function escapeHtml(text) {
@@ -396,27 +327,35 @@
             } catch (error) {
                 console.error('Error loading characters:', error);
                 showError(error.message || 'Error de conexión. Verifica tu conexión a internet.');
+            } finally {
+                // Ensure loading spinner is hidden even if an unexpected error occurs
+                try { document.getElementById('loadingState').style.display = 'none'; } catch (e) { /* ignore */ }
             }
         }
 
         // Render characters grid
         function renderCharacters() {
             const grid = document.getElementById('charactersGrid');
-            
-            grid.innerHTML = characters.map((character, index) => `
-                <div class="character-card" onclick="viewCharacter('${character.id}')" style="animation-delay: ${index * 0.1}s">
-                    <div class="character-header">
-                        <div class="character-icon">👤</div>
-                        <div class="character-id">#${character.id.substring(0, 8)}</div>
+            try {
+                grid.innerHTML = characters.map((character, index) => `
+                    <div class="character-card" onclick="viewCharacter('${character.id}')" style="animation-delay: ${index * 0.1}s">
+                        <div class="character-header">
+                            <div class="character-icon">👤</div>
+                            <div class="character-id">#${character.id ? character.id.substring(0, 8) : '----'}</div>
+                        </div>
+                        <h3 class="character-name">${escapeHtml(character.name || 'Sin nombre')}</h3>
+                        <div class="character-actions">
+                            <button class="btn-action" onclick="event.stopPropagation(); viewCharacter('${character.id}')">
+                                Ver Detalles
+                            </button>
+                        </div>
                     </div>
-                    <h3 class="character-name">${escapeHtml(character.name)}</h3>
-                    <div class="character-actions">
-                        <button class="btn-action" onclick="event.stopPropagation(); viewCharacter('${character.id}')">
-                            Ver Detalles
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+                `).join('');
+            } catch (err) {
+                console.error('Error rendering characters:', err);
+                // Fallback to empty state to avoid leaving spinner visible
+                showEmpty();
+            }
         }
 
         // View character details
@@ -465,29 +404,52 @@
             document.getElementById('characterModalName').textContent = pj.name;
             document.getElementById('characterModalType').textContent = pj.pj_type === 'human' ? 'Personaje Humano' : 'Personaje Sobrenatural';
 
+            // Store original stats for change detection
+            originalStats = JSON.parse(JSON.stringify(pj));
+            currentStats = JSON.parse(JSON.stringify(pj));
+
+            const warningIcon = (fieldName) => {
+                const watchId = `stat-${fieldName}`;
+                const button = `onclick="checkStatChange('${fieldName}')"`;
+                return `<span class="stat-warning" id="warning-${fieldName}" style="display:none; margin-left:8px; color:#ff4a9e; font-size:14px;" title="⚠️ Este valor ha sido modificado">⚠️</span>`;
+            };
+
+            const statInput = (label, id, value, min = 0, max = 100) => `
+                <div class="pj-stat">
+                    <div class="pj-stat-label">
+                        ${label}
+                        <span class="stat-warning" id="warning-${id}" style="display:none; color:#ff4a9e; margin-left:4px;" title="Este valor ha sido modificado">⚠️</span>
+                    </div>
+                    <input type="number" id="stat-${id}" min="${min}" max="${max}" value="${value}" 
+                           class="pj-stat-input" 
+                           onchange="checkStatChange('${id}')"
+                           onkeyup="checkStatChange('${id}')" />
+                </div>
+            `;
+
             const content = `
                 <div class="pj-stats-section">
                     <div class="pj-stats-title">👤 Características Personales</div>
                     <div class="pj-info-grid">
                         <div class="pj-info-item">
-                            <div class="pj-info-label">Edad</div>
-                            <div class="pj-info-value">${pj.age}</div>
+                            <div class="pj-info-label">Edad <span class="stat-warning" id="warning-age" style="display:none; color:#ff4a9e;">⚠️</span></div>
+                            <input type="number" id="stat-age" min="0" value="${pj.age}" class="pj-info-input" onchange="checkStatChange('age')" onkeyup="checkStatChange('age')" />
                         </div>
                         <div class="pj-info-item">
-                            <div class="pj-info-label">Altura</div>
-                            <div class="pj-info-value">${pj.height}cm</div>
+                            <div class="pj-info-label">Altura (cm) <span class="stat-warning" id="warning-height" style="display:none; color:#ff4a9e;">⚠️</span></div>
+                            <input type="number" id="stat-height" min="1" value="${pj.height}" class="pj-info-input" onchange="checkStatChange('height')" onkeyup="checkStatChange('height')" />
                         </div>
                         <div class="pj-info-item">
-                            <div class="pj-info-label">Peso</div>
-                            <div class="pj-info-value">${pj.weight}</div>
+                            <div class="pj-info-label">Peso <span class="stat-warning" id="warning-weight" style="display:none; color:#ff4a9e;">⚠️</span></div>
+                            <input type="text" id="stat-weight" value="${pj.weight}" class="pj-info-input" onchange="checkStatChange('weight')" onkeyup="checkStatChange('weight')" />
                         </div>
                         <div class="pj-info-item">
-                            <div class="pj-info-label">Apariencia</div>
-                            <div class="pj-info-value">${pj.look}/20</div>
+                            <div class="pj-info-label">Apariencia (1-20) <span class="stat-warning" id="warning-look" style="display:none; color:#ff4a9e;">⚠️</span></div>
+                            <input type="number" id="stat-look" min="1" max="20" value="${pj.look}" class="pj-info-input" onchange="checkStatChange('look')" onkeyup="checkStatChange('look')" />
                         </div>
                         <div class="pj-info-item">
-                            <div class="pj-info-label">❤️ Vida</div>
-                            <div class="pj-info-value">${pj.basic_stats.life}</div>
+                            <div class="pj-info-label">❤️ Vida <span class="stat-warning" id="warning-life" style="display:none; color:#ff4a9e;">⚠️</span></div>
+                            <input type="number" id="stat-life" min="0" value="${pj.basic_stats.life}" class="pj-info-input" onchange="checkStatChange('life')" onkeyup="checkStatChange('life')" />
                         </div>
                     </div>
                 </div>
@@ -495,112 +457,55 @@
                 <div class="pj-stats-section">
                     <div class="pj-stats-title">💪 Stats Físicos Básicos ${pj.basic_stats.physical.is_talented ? '⭐' : ''}</div>
                     <div class="pj-stats-grid">
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Fuerza</div>
-                            <div class="pj-stat-value">${pj.basic_stats.physical.strength}</div>
-                        </div>
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Agilidad</div>
-                            <div class="pj-stat-value">${pj.basic_stats.physical.agility}</div>
-                        </div>
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Velocidad</div>
-                            <div class="pj-stat-value">${pj.basic_stats.physical.speed}</div>
-                        </div>
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Resistencia</div>
-                            <div class="pj-stat-value">${pj.basic_stats.physical.resistance}</div>
-                        </div>
+                        ${statInput('Fuerza', 'strength', pj.basic_stats.physical.strength)}
+                        ${statInput('Agilidad', 'agility', pj.basic_stats.physical.agility)}
+                        ${statInput('Velocidad', 'speed', pj.basic_stats.physical.speed)}
+                        ${statInput('Resistencia', 'resistance', pj.basic_stats.physical.resistance)}
                     </div>
                 </div>
 
                 <div class="pj-stats-section">
                     <div class="pj-stats-title">🧠 Stats Mentales Básicos ${pj.basic_stats.mental.is_talented ? '⭐' : ''}</div>
                     <div class="pj-stats-grid">
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Inteligencia</div>
-                            <div class="pj-stat-value">${pj.basic_stats.mental.intelligence}</div>
-                        </div>
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Sabiduría</div>
-                            <div class="pj-stat-value">${pj.basic_stats.mental.wisdom}</div>
-                        </div>
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Concentración</div>
-                            <div class="pj-stat-value">${pj.basic_stats.mental.concentration}</div>
-                        </div>
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Voluntad</div>
-                            <div class="pj-stat-value">${pj.basic_stats.mental.will}</div>
-                        </div>
+                        ${statInput('Inteligencia', 'intelligence', pj.basic_stats.mental.intelligence)}
+                        ${statInput('Sabiduría', 'wisdom', pj.basic_stats.mental.wisdom)}
+                        ${statInput('Concentración', 'concentration', pj.basic_stats.mental.concentration)}
+                        ${statInput('Voluntad', 'will', pj.basic_stats.mental.will)}
                     </div>
                 </div>
 
                 <div class="pj-stats-section">
                     <div class="pj-stats-title">🎯 Stats de Coordinación Básicos ${pj.basic_stats.coordination.is_talented ? '⭐' : ''}</div>
                     <div class="pj-stats-grid">
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Precisión</div>
-                            <div class="pj-stat-value">${pj.basic_stats.coordination.precision}</div>
-                        </div>
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Cálculo</div>
-                            <div class="pj-stat-value">${pj.basic_stats.coordination.calculation}</div>
-                        </div>
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Alcance</div>
-                            <div class="pj-stat-value">${pj.basic_stats.coordination.range}</div>
-                        </div>
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Reflejos</div>
-                            <div class="pj-stat-value">${pj.basic_stats.coordination.reflexes}</div>
-                        </div>
+                        ${statInput('Precisión', 'precision', pj.basic_stats.coordination.precision)}
+                        ${statInput('Cálculo', 'calculation', pj.basic_stats.coordination.calculation)}
+                        ${statInput('Alcance', 'range', pj.basic_stats.coordination.range)}
+                        ${statInput('Reflejos', 'reflexes', pj.basic_stats.coordination.reflexes)}
                     </div>
                 </div>
 
                 <div class="pj-stats-section">
                     <div class="pj-stats-title">💥 Habilidades Físicas Especiales ${pj.special_stats.physical.is_talented ? '⭐' : ''}</div>
                     <div class="pj-stats-grid" style="grid-template-columns: repeat(2, 1fr);">
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Potenciación</div>
-                            <div class="pj-stat-value">${pj.special_stats.physical.empowerment}</div>
-                        </div>
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Control Vital</div>
-                            <div class="pj-stat-value">${pj.special_stats.physical.vital_control}</div>
-                        </div>
+                        ${statInput('Potenciación', 'empowerment', pj.special_stats.physical.empowerment)}
+                        ${statInput('Control Vital', 'vital-control', pj.special_stats.physical.vital_control)}
                     </div>
                 </div>
 
                 <div class="pj-stats-section">
                     <div class="pj-stats-title">🔮 Habilidades Mentales Especiales ${pj.special_stats.mental.is_talented ? '⭐' : ''}</div>
                     <div class="pj-stats-grid" style="grid-template-columns: repeat(2, 1fr);">
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Ilusión</div>
-                            <div class="pj-stat-value">${pj.special_stats.mental.illusion}</div>
-                        </div>
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Control Mental</div>
-                            <div class="pj-stat-value">${pj.special_stats.mental.mental_control}</div>
-                        </div>
+                        ${statInput('Ilusión', 'illusion', pj.special_stats.mental.illusion)}
+                        ${statInput('Control Mental', 'mental-control', pj.special_stats.mental.mental_control)}
                     </div>
                 </div>
 
                 <div class="pj-stats-section">
                     <div class="pj-stats-title">⚡ Habilidades de Energía ${pj.special_stats.energy.is_talented ? '⭐' : ''}</div>
                     <div class="pj-stats-grid">
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Manejo de Objetos</div>
-                            <div class="pj-stat-value">${pj.special_stats.energy.object_handling}</div>
-                        </div>
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Manejo de Energía</div>
-                            <div class="pj-stat-value">${pj.special_stats.energy.energy_handling}</div>
-                        </div>
-                        <div class="pj-stat">
-                            <div class="pj-stat-label">Tanque de Energía ${pj.special_stats.is_energy_talented ? '⭐' : ''}</div>
-                            <div class="pj-stat-value">${pj.special_stats.energy_tank}</div>
-                        </div>
+                        ${statInput('Manejo de Objetos', 'object-handling', pj.special_stats.energy.object_handling)}
+                        ${statInput('Manejo de Energía', 'energy-handling', pj.special_stats.energy.energy_handling)}
+                        ${statInput('Tanque de Energía', 'energy-tank', pj.special_stats.energy_tank)}
                     </div>
                 </div>
 
@@ -621,134 +526,92 @@
             `;
 
             document.getElementById('characterModalContent').innerHTML = content;
-            document.getElementById('btnEditStats').style.display = 'inline-flex';
+            document.getElementById('btnSavePJStats').style.display = 'none';
             document.getElementById('characterModal').classList.add('show');
+        }
+
+        // Check if a stat has changed and toggle warning icon
+        function checkStatChange(fieldName) {
+            const inputEl = document.getElementById(`stat-${fieldName}`);
+            const warningEl = document.getElementById(`warning-${fieldName}`);
+            if (!inputEl) return;
+
+            let originalValue, currentValue;
+            
+            // Get values based on field name
+            if (fieldName === 'age') {
+                originalValue = originalStats.age;
+                currentValue = parseInt(inputEl.value);
+            } else if (fieldName === 'height') {
+                originalValue = originalStats.height;
+                currentValue = parseInt(inputEl.value);
+            } else if (fieldName === 'weight') {
+                originalValue = originalStats.weight;
+                currentValue = inputEl.value;
+            } else if (fieldName === 'look') {
+                originalValue = originalStats.look;
+                currentValue = parseInt(inputEl.value);
+            } else if (fieldName === 'life') {
+                originalValue = originalStats.basic_stats.life;
+                currentValue = parseInt(inputEl.value);
+            } else if (['strength', 'agility', 'speed', 'resistance'].includes(fieldName)) {
+                originalValue = originalStats.basic_stats.physical[fieldName];
+                currentValue = parseInt(inputEl.value);
+            } else if (['intelligence', 'wisdom', 'concentration', 'will'].includes(fieldName)) {
+                originalValue = originalStats.basic_stats.mental[fieldName];
+                currentValue = parseInt(inputEl.value);
+            } else if (['precision', 'calculation', 'range', 'reflexes'].includes(fieldName)) {
+                originalValue = originalStats.basic_stats.coordination[fieldName];
+                currentValue = parseInt(inputEl.value);
+            } else if (['empowerment', 'vital-control'].includes(fieldName)) {
+                const key = fieldName.replace('-', '_');
+                originalValue = originalStats.special_stats.physical[key];
+                currentValue = parseInt(inputEl.value);
+            } else if (['illusion', 'mental-control'].includes(fieldName)) {
+                const key = fieldName.replace('-', '_');
+                originalValue = originalStats.special_stats.mental[key];
+                currentValue = parseInt(inputEl.value);
+            } else if (['object-handling', 'energy-handling'].includes(fieldName)) {
+                const key = fieldName.replace('-', '_');
+                originalValue = originalStats.special_stats.energy[key];
+                currentValue = parseInt(inputEl.value);
+            } else if (fieldName === 'energy-tank') {
+                originalValue = originalStats.special_stats.energy_tank;
+                currentValue = parseInt(inputEl.value);
+            }
+
+            // Toggle warning icon if value changed
+            if (warningEl) {
+               warningEl.style.display = (originalValue !== currentValue) ? 'inline' : 'none';
+            }
+
+            // Show save button if any changes exist
+            updateSaveButtonVisibility();
+        }
+
+        // Check if there are any changes and show save button accordingly
+        function updateSaveButtonVisibility() {
+            const inputs = document.querySelectorAll('.pj-stat-input, .pj-info-input');
+            let hasChanges = false;
+
+            inputs.forEach(input => {
+                const warning = input.parentElement.querySelector('.stat-warning');
+                if (warning && warning.style.display !== 'none') {
+                    hasChanges = true;
+                }
+            });
+
+            document.getElementById('btnSavePJStats').style.display = hasChanges ? 'inline-flex' : 'none';
         }
 
         // Close character modal
         function closeCharacterModal() {
             document.getElementById('characterModal').classList.remove('show');
-            document.getElementById('btnEditStats').style.display = 'none';
         }
 
-        // Open edit stats modal
-        function openEditStatsModal() {
+        // Save PJ Stats function
+        async function savePJStats() {
             if (!currentPJ) return;
-
-            // Store original stats for validation
-            originalStats = JSON.parse(JSON.stringify(currentPJ));
-
-            // Populate XP display
-            document.getElementById('xpBasicDisplay').textContent = currentPJ.xp.basic;
-            document.getElementById('xpSpecialDisplay').textContent = currentPJ.xp.special;
-            document.getElementById('xpSupernaturalDisplay').textContent = currentPJ.xp.supernatural;
-
-            // Populate form with current stats
-            document.getElementById('stat-strength').value = currentPJ.basic_stats.physical.strength;
-            document.getElementById('stat-agility').value = currentPJ.basic_stats.physical.agility;
-            document.getElementById('stat-speed').value = currentPJ.basic_stats.physical.speed;
-            document.getElementById('stat-resistance').value = currentPJ.basic_stats.physical.resistance;
-
-            document.getElementById('stat-intelligence').value = currentPJ.basic_stats.mental.intelligence;
-            document.getElementById('stat-wisdom').value = currentPJ.basic_stats.mental.wisdom;
-            document.getElementById('stat-concentration').value = currentPJ.basic_stats.mental.concentration;
-            document.getElementById('stat-will').value = currentPJ.basic_stats.mental.will;
-
-            document.getElementById('stat-precision').value = currentPJ.basic_stats.coordination.precision;
-            document.getElementById('stat-calculation').value = currentPJ.basic_stats.coordination.calculation;
-            document.getElementById('stat-range').value = currentPJ.basic_stats.coordination.range;
-            document.getElementById('stat-reflexes').value = currentPJ.basic_stats.coordination.reflexes;
-
-            document.getElementById('stat-life').value = currentPJ.basic_stats.life;
-
-            document.getElementById('stat-empowerment').value = currentPJ.special_stats.physical.empowerment;
-            document.getElementById('stat-vital-control').value = currentPJ.special_stats.physical.vital_control;
-
-            document.getElementById('stat-illusion').value = currentPJ.special_stats.mental.illusion;
-            document.getElementById('stat-mental-control').value = currentPJ.special_stats.mental.mental_control;
-
-            document.getElementById('stat-object-handling').value = currentPJ.special_stats.energy.object_handling;
-            document.getElementById('stat-energy-handling').value = currentPJ.special_stats.energy.energy_handling;
-            document.getElementById('stat-energy-tank').value = currentPJ.special_stats.energy_tank;
-
-            document.getElementById('editStatsModal').classList.add('show');
-        }
-
-        // Close edit stats modal
-        function closeEditStatsModal() {
-            document.getElementById('editStatsModal').classList.remove('show');
-            hideEditStatsAlert();
-        }
-
-        // Show/hide alert in edit stats modal
-        function showEditStatsAlert(message, type = 'error') {
-            const alert = document.getElementById('editStatsAlert');
-            alert.textContent = message;
-            alert.className = `modal-alert ${type} show`;
-        }
-
-        function hideEditStatsAlert() {
-            document.getElementById('editStatsAlert').classList.remove('show');
-        }
-
-        // Validate that stats only increase
-        function validateStatsIncrease() {
-            const newStrength = parseInt(document.getElementById('stat-strength').value);
-            const newAgility = parseInt(document.getElementById('stat-agility').value);
-            const newSpeed = parseInt(document.getElementById('stat-speed').value);
-            const newResistance = parseInt(document.getElementById('stat-resistance').value);
-            const newIntelligence = parseInt(document.getElementById('stat-intelligence').value);
-            const newWisdom = parseInt(document.getElementById('stat-wisdom').value);
-            const newConcentration = parseInt(document.getElementById('stat-concentration').value);
-            const newWill = parseInt(document.getElementById('stat-will').value);
-            const newPrecision = parseInt(document.getElementById('stat-precision').value);
-            const newCalculation = parseInt(document.getElementById('stat-calculation').value);
-            const newRange = parseInt(document.getElementById('stat-range').value);
-            const newReflexes = parseInt(document.getElementById('stat-reflexes').value);
-            const newLife = parseInt(document.getElementById('stat-life').value);
-            const newEmpowerment = parseInt(document.getElementById('stat-empowerment').value);
-            const newVitalControl = parseInt(document.getElementById('stat-vital-control').value);
-            const newIllusion = parseInt(document.getElementById('stat-illusion').value);
-            const newMentalControl = parseInt(document.getElementById('stat-mental-control').value);
-            const newObjectHandling = parseInt(document.getElementById('stat-object-handling').value);
-            const newEnergyHandling = parseInt(document.getElementById('stat-energy-handling').value);
-            const newEnergyTank = parseInt(document.getElementById('stat-energy-tank').value);
-
-            // Check if any stat decreased
-            if (newStrength < originalStats.basic_stats.physical.strength) return 'No puedes reducir Fuerza';
-            if (newAgility < originalStats.basic_stats.physical.agility) return 'No puedes reducir Agilidad';
-            if (newSpeed < originalStats.basic_stats.physical.speed) return 'No puedes reducir Velocidad';
-            if (newResistance < originalStats.basic_stats.physical.resistance) return 'No puedes reducir Resistencia';
-            if (newIntelligence < originalStats.basic_stats.mental.intelligence) return 'No puedes reducir Inteligencia';
-            if (newWisdom < originalStats.basic_stats.mental.wisdom) return 'No puedes reducir Sabiduría';
-            if (newConcentration < originalStats.basic_stats.mental.concentration) return 'No puedes reducir Concentración';
-            if (newWill < originalStats.basic_stats.mental.will) return 'No puedes reducir Voluntad';
-            if (newPrecision < originalStats.basic_stats.coordination.precision) return 'No puedes reducir Precisión';
-            if (newCalculation < originalStats.basic_stats.coordination.calculation) return 'No puedes reducir Cálculo';
-            if (newRange < originalStats.basic_stats.coordination.range) return 'No puedes reducir Alcance';
-            if (newReflexes < originalStats.basic_stats.coordination.reflexes) return 'No puedes reducir Reflejos';
-            if (newLife < originalStats.basic_stats.life) return 'No puedes reducir Vida';
-            if (newEmpowerment < originalStats.special_stats.physical.empowerment) return 'No puedes reducir Potenciación';
-            if (newVitalControl < originalStats.special_stats.physical.vital_control) return 'No puedes reducir Control Vital';
-            if (newIllusion < originalStats.special_stats.mental.illusion) return 'No puedes reducir Ilusión';
-            if (newMentalControl < originalStats.special_stats.mental.mental_control) return 'No puedes reducir Control Mental';
-            if (newObjectHandling < originalStats.special_stats.energy.object_handling) return 'No puedes reducir Manejo de Objetos';
-            if (newEnergyHandling < originalStats.special_stats.energy.energy_handling) return 'No puedes reducir Manejo de Energía';
-            if (newEnergyTank < originalStats.special_stats.energy_tank) return 'No puedes reducir Tanque de Energía';
-
-            return null; // No errors
-        }
-
-        // Save stats
-        async function saveStats() {
-            if (!currentPJ) return;
-
-            // Validate that stats only increase
-            const validationError = validateStatsIncrease();
-            if (validationError) {
-                showEditStatsAlert(validationError, 'error');
-                return;
-            }
 
             const token = localStorage.getItem('authToken');
             if (!token) {
@@ -756,13 +619,16 @@
                 return;
             }
 
-            const btnSave = document.getElementById('btnSaveStats');
+            const btnSave = document.getElementById('btnSavePJStats');
             btnSave.classList.add('loading');
             btnSave.disabled = true;
-            hideEditStatsAlert();
 
             try {
                 const requestBody = {
+                    age: parseInt(document.getElementById('stat-age').value),
+                    height: parseInt(document.getElementById('stat-height').value),
+                    weight: document.getElementById('stat-weight').value,
+                    look: parseInt(document.getElementById('stat-look').value),
                     basic_stats: {
                         physical: {
                             strength: parseInt(document.getElementById('stat-strength').value),
@@ -806,7 +672,7 @@
                     requestBody.supernatural_stats = currentPJ.supernatural_stats;
                 }
 
-                const response = await fetch(`${API_BASE_URL}/api/v1/pjs/${currentPJ.id}/stats`, {
+                const response = await fetch(`${API_BASE_URL}/api/v1/pjs/${currentPJ.id}`, {
                     method: 'PUT',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -822,41 +688,44 @@
                 }
 
                 if (response.status === 403) {
-                    showEditStatsAlert('No tienes permisos para editar este personaje', 'error');
-                    return;
-                }
-
-                if (response.status === 406) {
-                    const error = await response.json().catch(() => ({}));
-                    showEditStatsAlert(error.error || 'No tienes suficiente XP para estas mejoras', 'error');
+                    showCharacterAlert('No tienes permisos para editar este personaje', 'error');
                     return;
                 }
 
                 if (!response.ok) {
                     const error = await response.json().catch(() => ({}));
-                    throw new Error(error.error || 'Error al actualizar stats');
+                    showCharacterAlert(error.error || 'Error al actualizar personaje', 'error');
+                    return;
                 }
 
                 const updatedPJ = await response.json();
                 currentPJ = updatedPJ;
+                originalStats = JSON.parse(JSON.stringify(updatedPJ));
 
-                showEditStatsAlert('¡Stats actualizados exitosamente!', 'success');
-
+                showCharacterAlert('Cambios guardados correctamente', 'success');
+                
+                // Reload the modal with updated data
                 setTimeout(() => {
-                    closeEditStatsModal();
-                    // Refresh character details
                     openCharacterModal(updatedPJ);
-                    // Reload character list
-                    loadCharacters();
                 }, 1500);
 
             } catch (error) {
                 console.error('Error saving stats:', error);
-                showEditStatsAlert(error.message || 'Error de conexión', 'error');
+                showCharacterAlert(error.message || 'Error de conexión', 'error');
             } finally {
                 btnSave.classList.remove('loading');
                 btnSave.disabled = false;
             }
+        }
+
+        // Show/hide alert in character modal
+        function showCharacterAlert(message, type = 'error') {
+            const alert = document.getElementById('characterModalAlert');
+            alert.textContent = message;
+            alert.className = `modal-alert ${type} show`;
+            setTimeout(() => {
+                alert.classList.remove('show');
+            }, 3000);
         }
 
         // Close modals on overlay click
@@ -866,22 +735,196 @@
             }
         });
 
-        document.getElementById('editStatsModal').addEventListener('click', function(e) {
+        document.getElementById('createPJModal').addEventListener('click', function(e) {
             if (e.target === this) {
-                closeEditStatsModal();
+                closeCreatePJModal();
             }
         });
 
         // Close modals on ESC key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
-                if (document.getElementById('editStatsModal').classList.contains('show')) {
-                    closeEditStatsModal();
-                } else if (document.getElementById('characterModal').classList.contains('show')) {
+                if (document.getElementById('characterModal').classList.contains('show')) {
                     closeCharacterModal();
+                } else if (document.getElementById('createPJModal').classList.contains('show')) {
+                    closeCreatePJModal();
                 }
             }
         });
+
+        // ----- Invitations / Create PJ from Invitation -----
+        let currentInvitationId = null;
+        let currentInvitationCampaignId = null;
+
+        function switchToCharactersTab() {
+            document.getElementById('tabCharactersBtn').classList.add('active');
+            document.getElementById('tabInvitationsBtn').classList.remove('active');
+            document.getElementById('charactersContainer').style.display = 'block';
+            document.getElementById('invitationsContainer').style.display = 'none';
+        }
+
+        function showInvitations() {
+            document.getElementById('tabCharactersBtn').classList.remove('active');
+            document.getElementById('tabInvitationsBtn').classList.add('active');
+            document.getElementById('charactersContainer').style.display = 'none';
+            document.getElementById('invitationsContainer').style.display = 'block';
+            loadInvitations();
+        }
+
+        async function loadInvitations() {
+            const token = localStorage.getItem('authToken');
+            if (!token) return;
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/v1/invitations`, {
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+                });
+                if (res.status === 401) { localStorage.removeItem('authToken'); window.location.href = 'login.html'; return; }
+                if (!res.ok) { throw new Error('Error cargando invitaciones'); }
+                const invites = await res.json();
+                renderInvitations(invites);
+            } catch (err) {
+                console.error('Error loading invitations:', err);
+                document.getElementById('invitationsList').innerHTML = '<div class="error-message">No se pudieron cargar las invitaciones.</div>';
+            }
+        }
+
+        function renderInvitations(invites) {
+            document.getElementById('invitationsCount').textContent = Array.isArray(invites) ? invites.length : 0;
+            if (!Array.isArray(invites) || invites.length === 0) {
+                document.getElementById('invitationsList').innerHTML = '<div class="empty-state">No hay invitaciones disponibles.</div>';
+                return;
+            }
+
+            document.getElementById('invitationsList').innerHTML = invites.map(inv => {
+                const campaignName = (inv.campaign && inv.campaign.name) ? escapeHtml(inv.campaign.name) : (inv.campaign_name ? escapeHtml(inv.campaign_name) : 'Campaña');
+                const stateRaw = (inv.state || 'pending').toString();
+                const state = escapeHtml(stateRaw);
+                const isAccepted = stateRaw.toLowerCase() === 'accepted' || stateRaw.toLowerCase() === 'acepted';
+                return `
+                    <div class="invitation-item">
+                        <div class="invitation-info">
+                            <div class="invitation-campaign">${campaignName}</div>
+                            <div class="invitation-meta">Estado: <strong>${state}</strong></div>
+                        </div>
+                        <div class="invitation-actions">
+                            ${isAccepted ? '<span class="badge success">Aceptada</span>' : `<button class="btn-action" onclick="openCreatePJModal('${inv.id}', '${inv.campaign_id || (inv.campaign && inv.campaign.id) || ''}', '${campaignName.replace(/'/g, "\\'")}')">Crear PJ</button>`}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openCreatePJModal(invitationId, campaignId, campaignName) {
+            currentInvitationId = invitationId;
+            currentInvitationCampaignId = campaignId;
+            document.getElementById('createPJCampaignName').textContent = campaignName || 'Campaña';
+            // set defaults
+            document.getElementById('pjNameInput').value = '';
+            document.getElementById('pjTypeInput').value = 'human';
+            document.getElementById('pjWeightInput').value = 70;
+            document.getElementById('pjHeightInput').value = 170;
+            document.getElementById('pjAgeInput').value = 25;
+            document.getElementById('pjLookInput').value = 10;
+            document.getElementById('pjCharismaInput').value = 0;
+            document.getElementById('pjVillainyInput').value = 0;
+            document.getElementById('pjHeroismInput').value = 5;
+            document.getElementById('pjIsPhysicalTalented').checked = false;
+            document.getElementById('pjIsMentalTalented').checked = false;
+            document.getElementById('pjIsCoordinationTalented').checked = false;
+            document.getElementById('pjIsEnergyTalented').checked = false;
+            document.getElementById('pjIsPhysicalSkillsTalented').checked = false;
+            document.getElementById('pjIsMentalSkillsTalented').checked = false;
+            document.getElementById('pjIsEnergySkillsTalented').checked = false;
+            document.getElementById('createPJModal').classList.add('show');
+        }
+
+        function closeCreatePJModal() {
+            document.getElementById('createPJModal').classList.remove('show');
+            currentInvitationId = null;
+            currentInvitationCampaignId = null;
+        }
+
+        async function createPJFromInvitation() {
+            const token = localStorage.getItem('authToken');
+            if (!token) { window.location.href = 'login.html'; return; }
+            if (!currentInvitationCampaignId) { alert('Campaign ID missing'); return; }
+
+            const name = document.getElementById('pjNameInput').value.trim();
+            const type = document.getElementById('pjTypeInput').value;
+            const weight = parseInt(document.getElementById('pjWeightInput').value) || undefined;
+            const height = parseInt(document.getElementById('pjHeightInput').value) || undefined;
+            const age = parseInt(document.getElementById('pjAgeInput').value) || undefined;
+            const look = parseInt(document.getElementById('pjLookInput').value) || 1;
+            const charisma = parseInt(document.getElementById('pjCharismaInput').value) || 0;
+            const villainy = parseInt(document.getElementById('pjVillainyInput').value) || 0;
+            const heroism = parseInt(document.getElementById('pjHeroismInput').value) || 0;
+            const is_physical_talented = !!document.getElementById('pjIsPhysicalTalented').checked;
+            const is_mental_talented = !!document.getElementById('pjIsMentalTalented').checked;
+            const is_coordination_talented = !!document.getElementById('pjIsCoordinationTalented').checked;
+            const is_energy_talented = !!document.getElementById('pjIsEnergyTalented').checked;
+            const is_physical_skills_talented = !!document.getElementById('pjIsPhysicalSkillsTalented').checked;
+            const is_mental_skills_talented = !!document.getElementById('pjIsMentalSkillsTalented').checked;
+            const is_energy_skills_talented = !!document.getElementById('pjIsEnergySkillsTalented').checked;
+
+            if (!name) { alert('El nombre es requerido'); return; }
+
+            const payload = {
+                name,
+                weight,
+                height,
+                age,
+                look,
+                charisma,
+                villainy,
+                heroism,
+                type,
+                is_physical_talented,
+                is_mental_talented,
+                is_coordination_talented,
+                is_energy_talented,
+                is_physical_skills_talented,
+                is_mental_skills_talented,
+                is_energy_skills_talented
+            };
+
+            const btn = document.getElementById('btnCreatePJ');
+            btn.disabled = true;
+            btn.classList.add('loading');
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/v1/campaigns/${currentInvitationCampaignId}/pjs`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.status === 401) { localStorage.removeItem('authToken'); window.location.href = 'login.html'; return; }
+
+                if (res.status === 403) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || 'No estás autorizado para crear este personaje');
+                }
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || `Error ${res.status}`);
+                }
+
+                const pj = await res.json();
+                alert('Personaje creado correctamente: ' + pj.name);
+                closeCreatePJModal();
+                loadCharacters();
+                loadInvitations();
+
+            } catch (err) {
+                console.error('Error creating PJ:', err);
+                alert(err.message || 'Error al crear personaje');
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+            }
+        }
+
 
         // Logout
         document.getElementById('logoutBtn').addEventListener('click', () => {

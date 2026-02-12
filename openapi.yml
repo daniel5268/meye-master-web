@@ -267,6 +267,40 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/v1/invitations:
+    get:
+      tags:
+        - Invitations
+      summary: Get user invitations
+      description: |
+        Retrieves all campaign invitations for the currently logged-in user.
+        
+        Returns invitations in all states (pending, accepted, rejected).
+      operationId: getUserInvitations
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of invitations for the logged user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invitation'
+              examples:
+                success:
+                  value:
+                    - id: 2e8e3d7f-8b4d-4370-a1d6-3546712d06bd
+                      campaign_id: 8791156c-806d-4d4c-95a7-b69561723ca3
+                      user_id: 94d32049-4745-44d3-9750-4c1dfe742ce1
+                      state: pending
+                    - id: 5f9a4b2c-3e1d-42a8-b7c6-8d9e0f1a2b3c
+                      campaign_id: 1234567-890a-bcde-f012-345678901234
+                      user_id: 94d32049-4745-44d3-9750-4c1dfe742ce1
+                      state: accepted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /api/v1/players:
     get:
       tags:
