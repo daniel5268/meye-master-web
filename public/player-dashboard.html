@@ -523,6 +523,21 @@
                         <div class="pj-xp-value">${pj.xp.supernatural}</div>
                     </div>
                 </div>
+                <div class="pj-spent-xp">
+                    <div class="pj-spent-xp-title">XP Gastado</div>
+                    <div class="pj-xp-item">
+                        <div class="pj-xp-label">Gastado Básico</div>
+                        <div class="pj-xp-value">${pj.spent_xp?.basic ?? 0}</div>
+                    </div>
+                    <div class="pj-xp-item">
+                        <div class="pj-xp-label">Gastado Especial</div>
+                        <div class="pj-xp-value">${pj.spent_xp?.special ?? 0}</div>
+                    </div>
+                    <div class="pj-xp-item">
+                        <div class="pj-xp-label">Gastado Sobrenatural</div>
+                        <div class="pj-xp-value">${pj.spent_xp?.supernatural ?? 0}</div>
+                    </div>
+                </div>
             `;
 
             document.getElementById('characterModalContent').innerHTML = content;
