@@ -672,7 +672,7 @@
                     requestBody.supernatural_stats = currentPJ.supernatural_stats;
                 }
 
-                const response = await fetch(`${API_BASE_URL}/api/v1/pjs/${currentPJ.id}`, {
+                const response = await fetch(`${API_BASE_URL}/api/v1/pjs/${currentPJ.id}/stats`, {
                     method: 'PUT',
                     headers: {
                         'Authorization': `Bearer ${token}`,
