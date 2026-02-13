@@ -4,7 +4,7 @@
 
 window.ENV = {
     // Change this to your actual API base URL
-    API_BASE_URL: 'http://localhost:3000'
+    API_BASE_URL: 'https://meye-api.ozkar.co/'
     
     // Examples for different environments:
     // Development: 'http://localhost:3000'
